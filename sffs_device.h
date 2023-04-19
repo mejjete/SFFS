@@ -39,7 +39,7 @@ int sffs_write_blk(blk32_t block, void *data, size_t size);
  *  Caller is responsible for allocating enough space 
  *  for data to be read
 */
-int sffs_write_blk(blk32_t block, void *data, size_t size);
+int sffs_read_blk(blk32_t block, void *data, size_t size);
 
 /**
  *  
@@ -55,6 +55,6 @@ int sffs_update_blk(blk32_t block, size_t size);
  *  Caller is responsible for allocating enough space 
  *  for data to be written
 */
-int sffs_write_bs(blk32_t block, void *data, size_t size)
+int sffs_write_bs(blk32_t block, void *data, size_t size);
 
 #endif  // SFFS_DEVICE_H

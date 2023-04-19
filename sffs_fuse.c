@@ -28,6 +28,7 @@ void *sffs_init(struct fuse_conn_info *conn)
         err_sys("Cannot initialize sffs image");
 
     sffs_ctx.disk_id = fd;
+
     if((flags & O_CREAT) == O_CREAT)
     {
         if(ftruncate(fd, 52428800) < 0)
@@ -42,6 +43,9 @@ void *sffs_init(struct fuse_conn_info *conn)
     
     if(read(sffs_ctx.disk_id, &sffs_ctx.sb, SFFS_SB_SIZE) < 0)
         err_sys("sffs: Read error\n");
+
+    if((sffs_ctx.cache = malloc(sffs_ctx.sb.s_block_size)) == NULL)
+        err_sys("sffs: Cannot allocate memory\n");
 
     // do not know what to return so return fuse's connector
     return conn;

@@ -15,6 +15,9 @@
 #include "sffs_device.h"
 #include "time.h"
 
+static bool __sffs_bm_check(blk32_t, bmap_t);
+static bool __sffs_bm_set(blk32_t, bmap_t);
+
 /**
  *  SFFS file system initialization code
 */
@@ -55,7 +58,7 @@ void __sffs_init()
     }
     else if(block_size < 1024 || block_size > 4096)
     {
-        err_msg("sffs: SFFS\'s block size within an inefficient range: 1024 < %d < 4096\n", block_size);
+        err_msg("sffs: SFFS block size within an inefficient range: 1024 < %d < 4096\n", block_size);
     }   
 
     blk32_t total_blocks = sffs_ctx.opts.fs_size / block_size;
@@ -136,14 +139,10 @@ void __sffs_init()
 
     sffs_ctx.sb = sffs_sb;
 
-    if((sffs_ctx.cache = malloc(data_bitmap_bytes)) == NULL)
+    if((sffs_ctx.cache = malloc(block_size)) == NULL)
         err_sys("sffs: Cannot allocate memory\n");
     
-    memset(sffs_ctx.cache, 0, data_bitmap_bytes);
-    
-    if(write(sffs_ctx.disk_id, sffs_ctx.cache, data_bitmap_bytes) < 0)
-        err_sys("sffs: Cannot write to underlying device")
-    
+    memset(sffs_ctx.cache, 0, block_size);
 
     /**
      *  SFFS superblock serializaing
@@ -153,6 +152,15 @@ void __sffs_init()
     
     if(write(sffs_ctx.disk_id, &sffs_sb, SFFS_SB_SIZE) == 0)
         err_sys("sffs: Cannot write to underlying device\n");
+    
+    /**
+     *  Data and GIT bitmap zeroing
+    */
+    for(int i = 0; i < data_bitmap_blks + GIT_size_blks; i++)
+    {
+        sffs_write_blk(sffs_ctx.sb.s_data_bitmap_start + i, 
+            sffs_ctx.cache, 1);
+    }
 }
 
 void sffs_read_sb(u8_t sb_id, struct sffs_superblock *sb)
@@ -162,4 +170,88 @@ void sffs_read_sb(u8_t sb_id, struct sffs_superblock *sb)
     
     if(read(sffs_ctx.disk_id, sb, SFFS_SB_SIZE) < 0)
         err_sys("sffs: Cannot write to underlying device\n");
+}
+
+void sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
+    struct sffs_inode *inode)
+{
+    inode->i_inode_num = ino_id;
+    inode->i_next_entry = 0;
+    inode->i_link_count =  0;
+    inode->i_flags = flags;
+    inode->i_mode = mode;
+    inode->i_blks_count = 0;
+    inode->i_bytes_rem = 0;
+
+    // Time constants
+    time_t tm = time(NULL);
+    inode->tv.t32.i_crt_time = tm;
+    inode->tv.t32.i_mod_time = tm;
+    inode->tv.t32.i_acc_time = tm;
+    inode->tv.t32.i_chg_time = tm;
+}
+
+bool sffs_data_bm_check(bmap_t id)
+{
+    return __sffs_bm_check(sffs_ctx.sb.s_data_bitmap_start, id);
+}
+
+bool sffs_GIT_bm_check(bmap_t id)
+{
+    return __sffs_bm_check(sffs_ctx.sb.s_GIT_bitmap_start, id);
+}
+
+bool sffs_data_bm_set(bmap_t id)
+{
+    return __sffs_bm_set(sffs_ctx.sb.s_data_bitmap_start, id);
+}
+
+bool sffs_GIT_bm_set(bmap_t id)
+{
+    return __sffs_bm_set(sffs_ctx.sb.s_GIT_bitmap_start, id);
+}
+
+static bool __sffs_bm_check(blk32_t bm_start, bmap_t id)
+{
+    u32_t block_size = sffs_ctx.sb.s_block_size;
+
+    u32_t byte_id = id / 8;
+    u32_t bit_id = id % 8;
+
+    if(sffs_read_blk(bm_start + (byte_id / block_size), sffs_ctx.cache, 1) < 0)
+        err_sys("sffs: Cannot read underlying device\n");
+    
+    u8_t byte = *((u8_t *)(sffs_ctx.cache + byte_id));
+    if((byte & (1 << bit_id)) == (1 << bit_id))
+        return true;
+    else 
+        return false;
+}
+
+static bool __sffs_bm_set(blk32_t bm_start, bmap_t id)
+{
+    u32_t block_size = sffs_ctx.sb.s_block_size;
+
+    u32_t byte_id = id / 8;
+    u32_t bit_id = id % 8;
+    blk32_t victim_block = bm_start + (byte_id / block_size); 
+
+    if(sffs_read_blk(victim_block, sffs_ctx.cache, 1) < 0)
+        err_sys("sffs: Cannot read underlying device\n");
+    
+    u8_t *cache = (u8_t *) sffs_ctx.cache;
+    u8_t byte = *(cache + byte_id);
+
+    if((byte & (1 << bit_id)) != (1 << bit_id))
+    {
+        byte |= (1 << bit_id);
+        memcpy(cache + byte_id, &byte, sizeof(u8_t));
+        
+        if(sffs_write_blk(victim_block, sffs_ctx.cache, 1) < 0)
+            err_sys("sffs: Cannot write to unerlying device\n");
+    }
+    else 
+        err_sys("sffs: File system is corrupted\n");
+
+    return true;
 }

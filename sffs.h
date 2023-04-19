@@ -7,7 +7,9 @@
 #define SFFS_H
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 /**
  *  Default inode ration for SFFS is 1 : 128KB. This value
@@ -27,6 +29,43 @@
 #define SFFS_MAGIC  0x53FF5346
 
 /**
+ *  SFFS file permission flags
+*/
+#define	SFFS_IRUSR  04000	// Read by owner
+#define	SFFS_IWUSR	0200    // Write by owner
+#define	SFFS_IXUSR	0100	// Execute by owner
+
+/**
+ *  Mixed file permission flags
+*/
+#define	SFFS_IRWXU	(SFFS_IRUSR | SFFS_IWUSR | SFFS_IXUSR)
+
+#define	SFFS_IRGRP	(S_IRUSR >> 3)	    // Read by group
+#define	SFFS_IWGRP	(S_IWUSR >> 3)	    // Write by group
+#define	SFFS_IXGRP	(S_IXUSR >> 3)	    // Execute by group
+
+// Read, write, and execute by group
+#define	SFFS_IRWXG	(S_IRWXU >> 3)
+
+#define	SFFS_IROTH	(S_IRGRP >> 3)	    // Read by others
+#define	SFFS_IWOTH	(S_IWGRP >> 3)	    // Write by others
+#define	SFFS_IXOTH	(S_IXGRP >> 3)	    // Execute by others
+
+// Read, write, and execute by others
+#define	SFFS_IRWXO	(S_IRWXG >> 3)
+
+/**
+ *  SFFS file types
+*/
+#define	SFFS_IFDIR	0040000	    // Directory
+#define	SFFS_IFCHR	0020000	    // Character device
+#define	SFFS_IFBLK	0060000	    // Block device
+#define	SFFS_IFREG	0100000	    // Regular file
+#define	SFFS_IFIFO	0010000	    // FIFO
+#define	SFFS_IFLNK	0120000	    // Symbolic link
+#define	SFFS_IFSOCK	0140000	    // Socket
+
+/**
  *  SFFS differentiate between inode entry and inode itself.
  *  The inode is the sffs_inode structure. 
  *  The inode entry consists of an inode followed by a data blocks, 
@@ -40,6 +79,7 @@
 
 typedef uint32_t blk32_t;       // Data block ID
 typedef uint32_t ino32_t;       // Inode block ID
+typedef uint32_t bmap_t;        // Bitmap ID
 
 typedef uint8_t  u8_t;
 typedef uint16_t u16_t;
@@ -141,11 +181,23 @@ struct __attribute__ ((__packed__)) sffs_superblock
  *  sffs.c
 */
 
+/**
+ *  Do basic initialization stuff, called during mounting
+*/
 void __sffs_init();
 
 /**
- *  Reads sb_id superblock, and places it in sb
+ *  Reads sb_id superblock in sb
 */
 void sffs_read_sb(u8_t sb_id, struct sffs_superblock *sb);
+
+void sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
+    struct sffs_inode *inode);
+
+bool sffs_data_bm_check(bmap_t);
+bool sffs_data_bm_set(bmap_t);
+
+bool sffs_GIT_bm_check(bmap_t);
+bool sffs_GIT_bm_set(bmap_t);
 
 #endif  // SFFS_H
