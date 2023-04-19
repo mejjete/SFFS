@@ -1,4 +1,9 @@
 /**
+ *  SPDX-License-Identifier: MIT
+ *  Copyright (c) 2023 Danylo Malapura
+*/
+
+/**
  *  Implementation of a sffs core functions
 */
 
@@ -131,8 +136,14 @@ void __sffs_init()
 
     sffs_ctx.sb = sffs_sb;
 
-    // Since initialization is done, we could proceed with writting data down
-
+    if((sffs_ctx.cache = malloc(data_bitmap_bytes)) == NULL)
+        err_sys("sffs: Cannot allocate memory\n");
+    
+    memset(sffs_ctx.cache, 0, data_bitmap_bytes);
+    
+    if(write(sffs_ctx.disk_id, sffs_ctx.cache, data_bitmap_bytes) < 0)
+        err_sys("sffs: Cannot write to underlying device")
+    
 
     /**
      *  SFFS superblock serializaing

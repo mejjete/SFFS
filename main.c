@@ -1,3 +1,8 @@
+/**
+ *  SPDX-License-Identifier: MIT
+ *  Copyright (c) 2023 Danylo Malapura
+*/
+
 #include "sffs_fuse.h"
 #include "sffs_err.h"
 #include "sffs.h"
@@ -98,7 +103,7 @@ int main(int argc, char **argv)
     if(getcwd(cwd, 4096) < 0)
         err_sys("sffs: Cannot get current working directory\n");
 
-    // Initialize log file 
+    // Initialize log file
     int log;
     if((log = open("fslog", O_CREAT | O_TRUNC | O_RDWR, 
             S_IRWXU | S_IRWXG | S_IRWXO)) < 0)

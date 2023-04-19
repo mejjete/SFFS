@@ -1,6 +1,11 @@
+/**
+ *  SPDX-License-Identifier: MIT
+ *  Copyright (c) 2023 Danylo Malapura
+*/
+
+#include <stdio.h>
 #include "sffs_err.h"
 #include "sffs_context.h"
-#include <stdio.h>
 
 void err_sys(const char *fmt, ...)
 {

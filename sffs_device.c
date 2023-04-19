@@ -1,3 +1,8 @@
+/**
+ *  SPDX-License-Identifier: MIT
+ *  Copyright (c) 2023 Danylo Malapura
+*/
+
 #include "sffs_device.h"
 
 int sffs_write_blk(blk32_t block, void *data, size_t size)
@@ -39,4 +44,19 @@ int sffs_read_blk(blk32_t block, void *data, size_t size)
         return seek;
 
     return read(sffs_ctx.disk_id, data, bytes);
+};
+
+int sffs_write_bs(blk32_t block, void *data, size_t size)
+{
+    if(!data)
+        return -1;
+    
+    uint64_t blk = block;
+    uint64_t offset = blk * sffs_ctx.sb.s_block_size;
+
+    int seek;
+    if((seek = lseek64(sffs_ctx.disk_id, offset, SEEK_SET)) < 0)
+        return seek;
+
+    return read(sffs_ctx.disk_id, data, size);
 };

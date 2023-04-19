@@ -1,3 +1,8 @@
+/**
+ *  SPDX-License-Identifier: MIT
+ *  Copyright (c) 2023 Danylo Malapura
+*/
+
 #ifndef SFFS_FUSE_H
 #define SFFS_FUSE_H
 #define FUSE_USE_VERSION 30
