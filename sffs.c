@@ -15,8 +15,8 @@
 #include "sffs_device.h"
 #include "time.h"
 
-static bool __sffs_bm_check(blk32_t, bmap_t);
-static bool __sffs_bm_set(blk32_t, bmap_t);
+static bool __sffs_check_bm(blk32_t, bmap_t);
+static bool __sffs_set_bm(blk32_t, bmap_t);
 
 /**
  *  SFFS file system initialization code
@@ -208,7 +208,7 @@ bool sffs_write_inode(struct sffs_inode *inode)
         return false;
     }
 
-    if(sffs_GIT_bm_check(inode->i_inode_num) == 0)
+    if(sffs_check_GIT_bm(inode->i_inode_num) == 0)
     {
         ino32_t ino = inode->i_inode_num;
         
@@ -232,7 +232,7 @@ bool sffs_write_inode(struct sffs_inode *inode)
             err_sys("sffs: Cannot write GIT entry\n");
         
         // Then update bitmap
-        sffs_GIT_bm_set(ino);
+        sffs_set_GIT_bm(ino);
         return true;
     }
     else 
@@ -248,7 +248,7 @@ struct sffs_inode *sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode)
         return inode;
     }
 
-    if(sffs_GIT_bm_check(inode->i_inode_num) != 0)
+    if(sffs_check_GIT_bm(inode->i_inode_num) != 0)
     {
         ino32_t ino = inode->i_inode_num;
         
@@ -275,27 +275,27 @@ struct sffs_inode *sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode)
     }
 }
 
-bool sffs_data_bm_check(bmap_t id)
+bool sffs_check_data_bm(bmap_t id)
 {
-    return __sffs_bm_check(sffs_ctx.sb.s_data_bitmap_start, id);
+    return __sffs_check_bm(sffs_ctx.sb.s_data_bitmap_start, id);
 }
 
-bool sffs_GIT_bm_check(bmap_t id)
+bool sffs_set_data_bm(bmap_t id)
 {
-    return __sffs_bm_check(sffs_ctx.sb.s_GIT_bitmap_start, id);
+    return __sffs_set_bm(sffs_ctx.sb.s_data_bitmap_start, id);
 }
 
-bool sffs_data_bm_set(bmap_t id)
+bool sffs_check_GIT_bm(bmap_t id)
 {
-    return __sffs_bm_set(sffs_ctx.sb.s_data_bitmap_start, id);
+    return __sffs_check_bm(sffs_ctx.sb.s_GIT_bitmap_start, id);
 }
 
-bool sffs_GIT_bm_set(bmap_t id)
+bool sffs_set_GIT_bm(bmap_t id)
 {
-    return __sffs_bm_set(sffs_ctx.sb.s_GIT_bitmap_start, id);
+    return __sffs_set_bm(sffs_ctx.sb.s_GIT_bitmap_start, id);
 }
 
-static bool __sffs_bm_check(blk32_t bm_start, bmap_t id)
+static bool __sffs_check_bm(blk32_t bm_start, bmap_t id)
 {
     u32_t block_size = sffs_ctx.sb.s_block_size;
 
@@ -312,7 +312,7 @@ static bool __sffs_bm_check(blk32_t bm_start, bmap_t id)
         return false;
 }
 
-static bool __sffs_bm_set(blk32_t bm_start, bmap_t id)
+static bool __sffs_set_bm(blk32_t bm_start, bmap_t id)
 {
     u32_t block_size = sffs_ctx.sb.s_block_size;
 

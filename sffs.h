@@ -196,9 +196,9 @@ void __sffs_init();
 void sffs_read_sb(u8_t sb_id, struct sffs_superblock *sb);
 
 /**
- *  Creates and initialize new inode instance in inode.
+ *  Creates and initializes new inode instance in inode.
  *  Newly created inode saved in inode and returned simultaneously.
- *  If error occurred, errno coed saved in sffs context and NULL
+ *  If error occurred, error code saved in sffs context and NULL
  *  pointer returned 
 */
 struct sffs_inode *sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
@@ -219,10 +219,10 @@ bool sffs_write_inode(struct sffs_inode *inode);
 */
 struct sffs_inode *sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode);
 
-bool sffs_data_bm_check(bmap_t);
-bool sffs_data_bm_set(bmap_t);
+bool sffs_check_data_bm(bmap_t);
+bool sffs_set_data_bm(bmap_t);
 
-bool sffs_GIT_bm_check(bmap_t);
-bool sffs_GIT_bm_set(bmap_t);
+bool sffs_check_GIT_bm(bmap_t);
+bool sffs_set_GIT_bm(bmap_t);
 
 #endif  // SFFS_H
