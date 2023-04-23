@@ -63,7 +63,7 @@ void __sffs_init()
 
     blk32_t total_blocks = sffs_ctx.opts.fs_size / block_size;
     blk32_t total_inodes = (total_blocks * block_size) / SFFS_INODE_RATIO;
-    blk32_t GIT_size_blks = (total_inodes / (block_size / SFFS_INODE_ENTRY_SIZE)) + 1;
+    blk32_t GIT_size_blks = (total_inodes / (block_size / (SFFS_INODE_SIZE * 2))) + 1;
     blk32_t GIT_bitmap_bytes = (total_inodes / 8) + 1;
     blk32_t GIT_bitmap_blks = (GIT_bitmap_bytes / block_size) + 1;
     
@@ -108,7 +108,7 @@ void __sffs_init()
     sffs_sb.s_error = 0;
     sffs_sb.s_prealloc_blocks = 0;
     sffs_sb.s_prealloc_dir_blocks = 0;
-    sffs_sb.s_inode_size = SFFS_INODE_SIZE;
+    sffs_sb.s_inode_size = sizeof(struct sffs_inode);
     sffs_sb.s_inode_block_size = SFFS_INODE_DATA_SIZE;
     sffs_sb.s_GIT_reserved = 0;
     sffs_sb.s_GIT_bitmap_reserved = 0;
@@ -136,12 +136,13 @@ void __sffs_init()
     sffs_sb.s_GIT_start = acc_address;
     sffs_sb.s_GIT_size = GIT_size_blks + sffs_sb.s_GIT_reserved;
     acc_address += GIT_size_blks;
-
-    sffs_ctx.sb = sffs_sb;
-
-    if((sffs_ctx.cache = malloc(block_size)) == NULL)
-        err_sys("sffs: Cannot allocate memory\n");
     
+    // In-memory superblock copy initialization
+    sffs_ctx.sb = sffs_sb;
+    
+    if((sffs_ctx.cache = malloc(4096)) == 0)
+        err_sys("sffs: Cannot allocate more memory\n");
+
     memset(sffs_ctx.cache, 0, block_size);
 
     /**
@@ -154,7 +155,7 @@ void __sffs_init()
         err_sys("sffs: Cannot write to underlying device\n");
     
     /**
-     *  Data and GIT bitmap zeroing
+     *  Data bitmap and GIT bitmap zeroing
     */
     for(int i = 0; i < data_bitmap_blks + GIT_size_blks; i++)
     {
@@ -172,12 +173,18 @@ void sffs_read_sb(u8_t sb_id, struct sffs_superblock *sb)
         err_sys("sffs: Cannot write to underlying device\n");
 }
 
-void sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
+struct sffs_inode *sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
     struct sffs_inode *inode)
 {
+    if(inode == NULL)
+    {
+        sffs_ctx.ecode = SFFS_NOENT;
+        return NULL;
+    }
+
     inode->i_inode_num = ino_id;
     inode->i_next_entry = 0;
-    inode->i_link_count =  0;
+    inode->i_link_count = 0;
     inode->i_flags = flags;
     inode->i_mode = mode;
     inode->i_blks_count = 0;
@@ -189,6 +196,83 @@ void sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
     inode->tv.t32.i_mod_time = tm;
     inode->tv.t32.i_acc_time = tm;
     inode->tv.t32.i_chg_time = tm;
+
+    return inode;
+}
+
+bool sffs_write_inode(struct sffs_inode *inode)
+{
+    if(inode == NULL)
+    {
+        sffs_ctx.ecode = SFFS_NOENT;
+        return false;
+    }
+
+    if(sffs_GIT_bm_check(inode->i_inode_num) == 0)
+    {
+        ino32_t ino = inode->i_inode_num;
+        
+        ino32_t ino_entry_size = sffs_ctx.sb.s_inode_block_size + 
+            sffs_ctx.sb.s_inode_size;
+
+        ino32_t ino_per_block = sffs_ctx.block_size / ino_entry_size;
+
+        blk32_t git_block = ino / ino_per_block;
+        blk32_t block_offset = (ino % ino_per_block) * 
+            sffs_ctx.sb.s_inode_size;
+
+        blk32_t ino_block = sffs_ctx.sb.s_GIT_start + git_block;
+        if(sffs_read_blk(ino_block, sffs_ctx.cache, 1) < 0)
+            err_sys("sffs: Cannot read GIT entry\n");
+        
+        memcpy(sffs_ctx.cache + block_offset, inode, sffs_ctx.sb.s_inode_size);
+
+        // First update GIT table
+        if(sffs_write_blk(ino_block, sffs_ctx.cache, 1) < 0)
+            err_sys("sffs: Cannot write GIT entry\n");
+        
+        // Then update bitmap
+        sffs_GIT_bm_set(ino);
+        return true;
+    }
+    else 
+        return false;
+}
+
+struct sffs_inode *sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode)
+{
+    if(inode == NULL)
+    {
+        sffs_ctx.ecode = SFFS_NOENT;
+        inode = NULL;
+        return inode;
+    }
+
+    if(sffs_GIT_bm_check(inode->i_inode_num) != 0)
+    {
+        ino32_t ino = inode->i_inode_num;
+        
+        ino32_t ino_entry_size = sffs_ctx.sb.s_inode_block_size + 
+            sffs_ctx.sb.s_inode_size;
+
+        ino32_t ino_per_block = sffs_ctx.block_size / ino_entry_size;
+
+        blk32_t git_block = ino / ino_per_block;
+        blk32_t block_offset = (ino % ino_per_block) * 
+            sffs_ctx.sb.s_inode_size;
+
+        blk32_t ino_block = sffs_ctx.sb.s_GIT_start + git_block;
+        if(sffs_read_blk(ino_block, sffs_ctx.cache, 1) < 0)
+            err_sys("sffs: Cannot read GIT entry\n");
+        
+        memcpy(inode, sffs_ctx.cache + block_offset, sffs_ctx.sb.s_inode_size);
+        return inode;
+    }
+    else
+    {
+        inode = NULL;
+        return inode;
+    }
 }
 
 bool sffs_data_bm_check(bmap_t id)
@@ -248,7 +332,7 @@ static bool __sffs_bm_set(blk32_t bm_start, bmap_t id)
         memcpy(cache + byte_id, &byte, sizeof(u8_t));
         
         if(sffs_write_blk(victim_block, sffs_ctx.cache, 1) < 0)
-            err_sys("sffs: Cannot write to unerlying device\n");
+            err_sys("sffs: Cannot write to underlying device\n");
     }
     else 
         err_sys("sffs: File system is corrupted\n");

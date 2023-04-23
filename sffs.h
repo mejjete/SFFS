@@ -73,9 +73,8 @@
  *  __sffs_init function. But now it is a macro which represents 
  *  the predefine value for this two entries
 */
-#define SFFS_INODE_SIZE             sizeof(struct sffs_inode) + 64
+#define SFFS_INODE_SIZE             sizeof(struct sffs_inode)
 #define SFFS_INODE_DATA_SIZE        SFFS_INODE_SIZE
-#define SFFS_INODE_ENTRY_SIZE       (SFFS_INODE_SIZE * 2)
 
 typedef uint32_t blk32_t;       // Data block ID
 typedef uint32_t ino32_t;       // Inode block ID
@@ -86,8 +85,13 @@ typedef uint16_t u16_t;
 typedef uint32_t u32_t;
 typedef uint64_t u64_t;
 
+typedef enum
+{
+    SFFS_NOENT,
+}sffs_err_t;
+
 /**
- *  SFFS inode. Represents a single file entiry
+ *  SFFS inode. Represents a single file entry
  * 
  *  REV. 1
 */
@@ -129,7 +133,7 @@ struct __attribute__ ((__packed__)) sffs_inode
     uint16_t i_link_count;      // Link count
 
     // Align fields
-    uint8_t __align1[64];         // padding
+    uint8_t __align1[66];         // padding
 };
 
 /**
@@ -191,8 +195,29 @@ void __sffs_init();
 */
 void sffs_read_sb(u8_t sb_id, struct sffs_superblock *sb);
 
-void sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
+/**
+ *  Creates and initialize new inode instance in inode.
+ *  Newly created inode saved in inode and returned simultaneously.
+ *  If error occurred, errno coed saved in sffs context and NULL
+ *  pointer returned 
+*/
+struct sffs_inode *sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
     struct sffs_inode *inode);
+
+/**
+ *  Writes inode to a disk. The location is determined by a 
+ *  i_inode_num inode identificator. On error, the false is returned 
+ *  and error code saved in sffs context
+*/
+bool sffs_write_inode(struct sffs_inode *inode); 
+
+/**
+ *  Reads inode from disk into inode.
+ *  Returns read inode in inode and return simultaneously.
+ *  If error occurred, errno code saved in sffs context
+ *  and NULL pointer returned
+*/
+struct sffs_inode *sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode);
 
 bool sffs_data_bm_check(bmap_t);
 bool sffs_data_bm_set(bmap_t);

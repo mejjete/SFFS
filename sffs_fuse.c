@@ -35,6 +35,11 @@ void *sffs_init(struct fuse_conn_info *conn)
             err_sys("Cannot create sffs image with specified size");
         
         __sffs_init();
+
+        struct sffs_inode ino;
+        sffs_creat_inode(0, 0, 0, &ino);
+        sffs_write_inode(&ino);
+
         return conn;
     }
 
@@ -46,6 +51,8 @@ void *sffs_init(struct fuse_conn_info *conn)
 
     if((sffs_ctx.cache = malloc(sffs_ctx.sb.s_block_size)) == NULL)
         err_sys("sffs: Cannot allocate memory\n");
+
+    sffs_ctx.block_size = sffs_ctx.sb.s_block_size;
 
     // do not know what to return so return fuse's connector
     return conn;
@@ -116,7 +123,14 @@ int sffs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offs
     if(strcmp(path, "/") == 0)
 	{
 		filler(buf, "file54", &statbuf, 0);
-		filler(buf, "file349", NULL, 0);
+		// filler(buf, "file349", NULL, 0);
+
+        struct sffs_inode ino;
+        sffs_read_inode(0, &ino);
+        statbuf.st_ino = ino.i_inode_num;
+        statbuf.st_blocks = ino.i_blks_count;
+        statbuf.st_blksize = 12345;
+        filler(buf, "root", &statbuf, 0);
 	}
 
     return 0;
