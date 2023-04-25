@@ -155,15 +155,6 @@ void __sffs_init()
         err_sys("sffs: Cannot write to underlying device\n");
     
     sffs_ctx.block_size = block_size;
-
-    /**
-     *  Data bitmap and GIT bitmap zeroing
-    */
-    for(int i = 0; i < data_bitmap_blks + GIT_size_blks; i++)
-    {
-        sffs_write_blk(sffs_ctx.sb.s_data_bitmap_start + i, 
-            sffs_ctx.cache, 1);
-    }
 }
 
 void sffs_read_sb(u8_t sb_id, struct sffs_superblock *sb)
