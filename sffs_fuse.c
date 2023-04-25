@@ -39,7 +39,6 @@ void *sffs_init(struct fuse_conn_info *conn)
         struct sffs_inode ino;
         sffs_creat_inode(0, 0, 0, &ino);
         sffs_write_inode(&ino);
-
         return conn;
     }
 
@@ -58,22 +57,27 @@ void *sffs_init(struct fuse_conn_info *conn)
 void sffs_destroy(void *data)
 {
     printf("SFFS_DESTROY\n");
+
+    if(sffs_write_sb(0, &sffs_ctx.sb) < 0)
+        ; // do high level error handling
+
     close(sffs_ctx.disk_id);
     close(sffs_ctx.log_id);
 }
 
 int sffs_statfs(const char *path, struct statvfs *statfs)
 {
-    struct sffs_superblock sb;
-    sffs_read_sb(1, &sb);
+    struct sffs_superblock *sb = &sffs_ctx.sb;
 
-    statfs->f_bsize = sb.s_block_size;
-    statfs->f_blocks = sb.s_blocks_count;
-    statfs->f_bfree = sb.s_free_blocks_count;
-    statfs->f_files = sb.s_inodes_count;
-    statfs->f_ffree = sb.s_free_inodes_count;
-    statfs->f_fsid = sb.s_magic;
+    statfs->f_bsize = sb->s_block_size;
+    statfs->f_blocks = sb->s_blocks_count;
+    statfs->f_bfree = sb->s_free_blocks_count;
+    statfs->f_files = sb->s_inodes_count;
+    statfs->f_ffree = sb->s_free_inodes_count;
+    statfs->f_fsid = sb->s_magic;
 
+    // Update superblock on disk
+    sffs_write_sb(0, sb);
     return 0;
 }
 

@@ -227,6 +227,12 @@ sffs_err_t __sffs_init();
 sffs_err_t sffs_read_sb(u8_t sb_id, struct sffs_superblock *sb);
 
 /**
+ *  Writes superblock pointed by sb to a specified location.
+ *  The reson for sb_id look sffs_read_sb.
+*/
+sffs_err_t sffs_write_sb(u8_t sb_id, struct sffs_superblock *sb);
+
+/**
  *  Creates and initializes new inode instance in inode.
  *  This handler performs check on the mode and flags arguments. 
  *  ino_id is not checked.

@@ -51,9 +51,7 @@ sffs_err_t __sffs_init()
     if(!(block_size > 0 && (block_size & (block_size - 1)) == 0))
         return SFFS_ERR_INVBLK;
     else if(block_size > getpagesize())
-        return SFFS_ERR_INVBLK;
-    else if(block_size < 1024 || block_size > 4096)
-        return SFFS_ERR_INVBLK;   
+        return SFFS_ERR_INVBLK; 
 
     blk32_t total_blocks = sffs_ctx.opts.fs_size / block_size;
     blk32_t total_inodes = (total_blocks * block_size) / SFFS_INODE_RATIO;
@@ -70,7 +68,7 @@ sffs_err_t __sffs_init()
 
     /**
      *  To count the number of meta data blocks, we should add 2 first blocks 
-     *  (1 boot blocks and 1 superblock) + GIT size +  GIT bitmaps size
+     *  (1 boot blocks and 1 superblock) + GIT size + GIT bitmap size
     */
     blk32_t meta_blks = ((superblock_start + 1) + GIT_bitmap_blks + GIT_size_blks);
 
@@ -163,6 +161,18 @@ sffs_err_t sffs_read_sb(u8_t sb_id, struct sffs_superblock *sb)
     return 0;
 }
 
+sffs_err_t sffs_write_sb(u8_t sb_id, struct sffs_superblock *sb)
+{
+    if(lseek64(sffs_ctx.disk_id, 1024, SEEK_SET) < 0)
+        return SFFS_ERR_DEV_SEEK;
+    
+    // Update superblock directly because in-memory version always up-to-date
+    if(write(sffs_ctx.disk_id, sb, 1024) < 0)
+        return SFFS_ERR_DEV_WRITE;
+    
+    return 0;
+}
+
 sffs_err_t sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
     struct sffs_inode *inode)
 {
@@ -219,7 +229,10 @@ sffs_err_t sffs_write_inode(struct sffs_inode *inode)
         if(errc < 0)
             return errc;
         
-        // Then update bitmap
+        // Second: update superblock
+        sffs_ctx.sb.s_free_inodes_count--;
+
+        // Third: update bitmap
         return sffs_set_GIT_bm(ino);
     }
     else
