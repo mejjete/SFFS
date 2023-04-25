@@ -154,6 +154,8 @@ void __sffs_init()
     if(write(sffs_ctx.disk_id, &sffs_sb, SFFS_SB_SIZE) == 0)
         err_sys("sffs: Cannot write to underlying device\n");
     
+    sffs_ctx.block_size = block_size;
+
     /**
      *  Data bitmap and GIT bitmap zeroing
     */
