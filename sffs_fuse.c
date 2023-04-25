@@ -43,11 +43,8 @@ void *sffs_init(struct fuse_conn_info *conn)
         return conn;
     }
 
-    if(lseek64(sffs_ctx.disk_id, 1024, SEEK_SET) < 0)
-        err_sys("sffs: Seek error\n");
-    
-    if(read(sffs_ctx.disk_id, &sffs_ctx.sb, SFFS_SB_SIZE) < 0)
-        err_sys("sffs: Read error\n");
+    // Superblock initialization
+    sffs_read_sb(0, &sffs_ctx.sb);
 
     if((sffs_ctx.cache = malloc(sffs_ctx.sb.s_block_size)) == NULL)
         err_sys("sffs: Cannot allocate memory\n");

@@ -15,13 +15,13 @@
 #include "sffs_device.h"
 #include "time.h"
 
-static bool __sffs_check_bm(blk32_t, bmap_t);
-static bool __sffs_set_bm(blk32_t, bmap_t);
+static sffs_err_t __sffs_check_bm(blk32_t, bmap_t);
+static sffs_err_t __sffs_set_bm(blk32_t, bmap_t);
 
 /**
  *  SFFS file system initialization code
 */
-void __sffs_init()
+sffs_err_t __sffs_init()
 {
     struct sffs_superblock sffs_sb;
     memset(&sffs_sb, 0, sizeof(struct sffs_superblock));
@@ -33,7 +33,7 @@ void __sffs_init()
     */
     struct statfs cwd_fs;
     if(statfs(sffs_ctx.cwd, &cwd_fs) < 0)
-        err_sys("sffs: Cannot obtain block size of underlying device\n");
+        return SFFS_ERR_DEV_STAT;
 
     blk32_t block_size = cwd_fs.f_bsize;
 
@@ -43,23 +43,17 @@ void __sffs_init()
      *  - not greater than OS's page size
      *  - be power of two
      *  
-     *  The one optional condition after two mandatory, is that file system's block size
-     *  desirably must be 1024 < block_size < 4096 as SFFS performance is optimized
+     *  The one optional condition (after mandatory are satisfied), 
+     *  is that file system's block size desirably must be:
+     *  1024 < block_size < 4096 as SFFS performance is optimized
      *  to work within this range
-     *  
     */
     if(!(block_size > 0 && (block_size & (block_size - 1)) == 0))
-    {
-        err_sys("sffs: Block size of underlying device is not a power of two\n");
-    }
+        return SFFS_ERR_INVBLK;
     else if(block_size > getpagesize())
-    {
-        err_sys("sffs: Block size of underlying device is bigger than OS's page size\n");
-    }
+        return SFFS_ERR_INVBLK;
     else if(block_size < 1024 || block_size > 4096)
-    {
-        err_msg("sffs: SFFS block size within an inefficient range: 1024 < %d < 4096\n", block_size);
-    }   
+        return SFFS_ERR_INVBLK;   
 
     blk32_t total_blocks = sffs_ctx.opts.fs_size / block_size;
     blk32_t total_inodes = (total_blocks * block_size) / SFFS_INODE_RATIO;
@@ -89,7 +83,7 @@ void __sffs_init()
 
     blk32_t result = meta_blks + data_bitmap_blks + data_blocks;
     if(result != total_blocks)
-        err_sys("sffs_init: Final number of blocks not equal total number of blocks\n");
+        return SFFS_ERR_INIT;
     
     /**
      *  After primary calculation has been done, superblock must be filled up
@@ -141,7 +135,7 @@ void __sffs_init()
     sffs_ctx.sb = sffs_sb;
     
     if((sffs_ctx.cache = malloc(4096)) == 0)
-        err_sys("sffs: Cannot allocate more memory\n");
+        return SFFS_ERR_MEMALLOC;
 
     memset(sffs_ctx.cache, 0, block_size);
 
@@ -149,31 +143,31 @@ void __sffs_init()
      *  SFFS superblock serializaing
     */
     if(lseek64(sffs_ctx.disk_id, 1024, SEEK_SET) < 0)
-        err_sys("sffs: Cannot seek underlying device\n");
+        return SFFS_ERR_DEV_SEEK;
     
     if(write(sffs_ctx.disk_id, &sffs_sb, SFFS_SB_SIZE) == 0)
-        err_sys("sffs: Cannot write to underlying device\n");
+        return SFFS_ERR_DEV_WRITE;
     
     sffs_ctx.block_size = block_size;
+    return 0;
 }
 
-void sffs_read_sb(u8_t sb_id, struct sffs_superblock *sb)
+sffs_err_t sffs_read_sb(u8_t sb_id, struct sffs_superblock *sb)
 {    
     if(lseek64(sffs_ctx.disk_id, 1024, SEEK_SET) < 0)
-        err_sys("sffs: Cannot seek underlying device\n");
+        return SFFS_ERR_DEV_SEEK;
     
     if(read(sffs_ctx.disk_id, sb, SFFS_SB_SIZE) < 0)
-        err_sys("sffs: Cannot write to underlying device\n");
+        return SFFS_ERR_DEV_WRITE;
+    
+    return 0;
 }
 
-struct sffs_inode *sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
+sffs_err_t sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
     struct sffs_inode *inode)
 {
     if(inode == NULL)
-    {
-        sffs_ctx.ecode = SFFS_NOENT;
-        return NULL;
-    }
+        return SFFS_ERR_INVARG;
 
     inode->i_inode_num = ino_id;
     inode->i_next_entry = 0;
@@ -190,19 +184,17 @@ struct sffs_inode *sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
     inode->tv.t32.i_acc_time = tm;
     inode->tv.t32.i_chg_time = tm;
 
-    return inode;
+    return 0;
 }
 
-bool sffs_write_inode(struct sffs_inode *inode)
+sffs_err_t sffs_write_inode(struct sffs_inode *inode)
 {
     if(inode == NULL)
-    {
-        sffs_ctx.ecode = SFFS_NOENT;
-        return false;
-    }
+        return SFFS_ERR_INVARG;
 
     if(sffs_check_GIT_bm(inode->i_inode_num) == 0)
     {
+        sffs_err_t errc;
         ino32_t ino = inode->i_inode_num;
         
         ino32_t ino_entry_size = sffs_ctx.sb.s_inode_block_size + 
@@ -215,34 +207,33 @@ bool sffs_write_inode(struct sffs_inode *inode)
             sffs_ctx.sb.s_inode_size;
 
         blk32_t ino_block = sffs_ctx.sb.s_GIT_start + git_block;
-        if(sffs_read_blk(ino_block, sffs_ctx.cache, 1) < 0)
-            err_sys("sffs: Cannot read GIT entry\n");
+
+        errc = sffs_read_blk(ino_block, sffs_ctx.cache, 1);
+        if(errc < 0)
+            return errc;
         
         memcpy(sffs_ctx.cache + block_offset, inode, sffs_ctx.sb.s_inode_size);
 
         // First update GIT table
-        if(sffs_write_blk(ino_block, sffs_ctx.cache, 1) < 0)
-            err_sys("sffs: Cannot write GIT entry\n");
+        errc = sffs_write_blk(ino_block, sffs_ctx.cache, 1);
+        if(errc < 0)
+            return errc;
         
         // Then update bitmap
-        sffs_set_GIT_bm(ino);
-        return true;
+        return sffs_set_GIT_bm(ino);
     }
-    else 
+    else
         return false;
 }
 
-struct sffs_inode *sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode)
+sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode)
 {
     if(inode == NULL)
-    {
-        sffs_ctx.ecode = SFFS_NOENT;
-        inode = NULL;
-        return inode;
-    }
+        return SFFS_ERR_INVARG;
 
     if(sffs_check_GIT_bm(inode->i_inode_num) != 0)
     {
+        sffs_err_t errc;
         ino32_t ino = inode->i_inode_num;
         
         ino32_t ino_entry_size = sffs_ctx.sb.s_inode_block_size + 
@@ -255,48 +246,48 @@ struct sffs_inode *sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode)
             sffs_ctx.sb.s_inode_size;
 
         blk32_t ino_block = sffs_ctx.sb.s_GIT_start + git_block;
-        if(sffs_read_blk(ino_block, sffs_ctx.cache, 1) < 0)
-            err_sys("sffs: Cannot read GIT entry\n");
+
+        errc = sffs_read_blk(ino_block, sffs_ctx.cache, 1); 
+        if(errc < 0)
+            return errc;
         
         memcpy(inode, sffs_ctx.cache + block_offset, sffs_ctx.sb.s_inode_size);
-        return inode;
+        return true;
     }
     else
-    {
-        inode = NULL;
-        return inode;
-    }
+        return false;
 }
 
-bool sffs_check_data_bm(bmap_t id)
+sffs_err_t sffs_check_data_bm(bmap_t id)
 {
     return __sffs_check_bm(sffs_ctx.sb.s_data_bitmap_start, id);
 }
 
-bool sffs_set_data_bm(bmap_t id)
+sffs_err_t sffs_set_data_bm(bmap_t id)
 {
     return __sffs_set_bm(sffs_ctx.sb.s_data_bitmap_start, id);
 }
 
-bool sffs_check_GIT_bm(bmap_t id)
+sffs_err_t sffs_check_GIT_bm(bmap_t id)
 {
     return __sffs_check_bm(sffs_ctx.sb.s_GIT_bitmap_start, id);
 }
 
-bool sffs_set_GIT_bm(bmap_t id)
+sffs_err_t sffs_set_GIT_bm(bmap_t id)
 {
     return __sffs_set_bm(sffs_ctx.sb.s_GIT_bitmap_start, id);
 }
 
-static bool __sffs_check_bm(blk32_t bm_start, bmap_t id)
+static sffs_err_t __sffs_check_bm(blk32_t bm_start, bmap_t id)
 {
+    sffs_err_t errc;
     u32_t block_size = sffs_ctx.sb.s_block_size;
-
     u32_t byte_id = id / 8;
     u32_t bit_id = id % 8;
 
-    if(sffs_read_blk(bm_start + (byte_id / block_size), sffs_ctx.cache, 1) < 0)
-        err_sys("sffs: Cannot read underlying device\n");
+    errc = sffs_read_blk(bm_start + (byte_id / block_size), sffs_ctx.cache, 1);
+    if(errc < 0)
+        return errc;
     
     u8_t byte = *((u8_t *)(sffs_ctx.cache + byte_id));
     if((byte & (1 << bit_id)) == (1 << bit_id))
@@ -305,16 +296,17 @@ static bool __sffs_check_bm(blk32_t bm_start, bmap_t id)
         return false;
 }
 
-static bool __sffs_set_bm(blk32_t bm_start, bmap_t id)
+static sffs_err_t __sffs_set_bm(blk32_t bm_start, bmap_t id)
 {
+    sffs_err_t errc;
     u32_t block_size = sffs_ctx.sb.s_block_size;
-
     u32_t byte_id = id / 8;
     u32_t bit_id = id % 8;
     blk32_t victim_block = bm_start + (byte_id / block_size); 
 
-    if(sffs_read_blk(victim_block, sffs_ctx.cache, 1) < 0)
-        err_sys("sffs: Cannot read underlying device\n");
+    errc = sffs_read_blk(victim_block, sffs_ctx.cache, 1);
+    if(errc < 0)
+        return errc;
     
     u8_t *cache = (u8_t *) sffs_ctx.cache;
     u8_t byte = *(cache + byte_id);
@@ -324,11 +316,12 @@ static bool __sffs_set_bm(blk32_t bm_start, bmap_t id)
         byte |= (1 << bit_id);
         memcpy(cache + byte_id, &byte, sizeof(u8_t));
         
-        if(sffs_write_blk(victim_block, sffs_ctx.cache, 1) < 0)
-            err_sys("sffs: Cannot write to underlying device\n");
+        errc = sffs_write_blk(victim_block, sffs_ctx.cache, 1);
+        if(errc < 0)
+            return errc;
     }
     else 
-        err_sys("sffs: File system is corrupted\n");
+        return SFFS_ERR_FS;
 
     return true;
 }

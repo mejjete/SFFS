@@ -23,7 +23,6 @@ typedef struct sffs_context
     blk32_t block_size;         // Block size for quick access
     struct sffs_options opts;   // Mount arguments (used by init)
     struct sffs_superblock sb;  // Super block instance
-    sffs_err_t ecode;           // Error code
     char *cwd;                  // Current working directory (must be freed)
     void *cache;                // Private data
 } sffs_context_t;

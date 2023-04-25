@@ -87,7 +87,30 @@ typedef uint64_t u64_t;
 
 typedef enum
 {
-    SFFS_NOENT,
+    /**
+     *  This default values are used for handlers to indicate there's no 
+     *  errors, as well as for bitmaps to indicates whether slots are
+     *  occupied or not. Thus 1 and 0 are reserved for file system needs.
+    */
+    __DEFAULT1 = 1,             
+    __DEFAULT2 = 0,
+    
+    /**
+     *  Basic erro handler codes
+    */
+    SFFS_ERR_INVARG = -1,       // Invalid arguments passed to a handler
+    SFFS_ERR_INVBLK = -2,       // Invalid block size
+    SFFS_ERR_INIT,              // Common error occured during mounting
+    SFFS_ERR_MEMALLOC,          // Cannot allocate memory       
+    SFFS_ERR_FS,                // File system structure is corrupted
+
+    /**
+     *  Device erro codes
+    */
+    SFFS_ERR_DEV_WRITE,         // Device write operation error
+    SFFS_ERR_DEV_READ,          // Device read operation error
+    SFFS_ERR_DEV_SEEK,          // Device seek operation error
+    SFFS_ERR_DEV_STAT,          // Device stat or statfs error
 }sffs_err_t;
 
 /**
@@ -133,7 +156,7 @@ struct __attribute__ ((__packed__)) sffs_inode
     uint16_t i_link_count;      // Link count
 
     // Align fields
-    uint8_t __align1[66];         // padding
+    uint8_t __align1[66];       // padding
 };
 
 /**
@@ -163,7 +186,7 @@ struct __attribute__ ((__packed__)) sffs_superblock
 
     uint32_t s_max_inode_list;          // Maximum value for a single inode list
     uint32_t s_features;                // File system flags
-    uint32_t s_prealloc_blocks;         // How many blocks preallocate for a single file
+    uint32_t s_prealloc_blocks;         // How many blocks preallocate for a file
     uint32_t s_prealloc_dir_blocks;     // How many blocks preallocate for a directory
 
     blk32_t s_data_bitmap_start;        // Data bitmap starting block
@@ -186,43 +209,60 @@ struct __attribute__ ((__packed__)) sffs_superblock
 */
 
 /**
- *  Do basic initialization stuff, called during mounting
+ *  Do basic initialization stuff, called during mounting.
+ * 
+ *  If handler fails, the error code is returned
 */
-void __sffs_init();
+sffs_err_t __sffs_init();
 
 /**
- *  Reads sb_id superblock in sb
+ *  The SFFS manages two superblocks. This allows for a file system 
+ *  to store crucial data within two places that increases its viability.
+ *  Although this API handler supports superblock id (sb_id), at the time
+ *  there's no second superblock location either as no second copy of superblock. 
+ *  I wish it would be added soon.
+ * 
+ *  If handler fails, the error code is returned
 */
-void sffs_read_sb(u8_t sb_id, struct sffs_superblock *sb);
+sffs_err_t sffs_read_sb(u8_t sb_id, struct sffs_superblock *sb);
 
 /**
  *  Creates and initializes new inode instance in inode.
- *  Newly created inode saved in inode and returned simultaneously.
- *  If error occurred, error code saved in sffs context and NULL
- *  pointer returned 
+ *  This handler performs check on the mode and flags arguments. 
+ *  ino_id is not checked.
+ * 
+ *  If handler fails, the error code is returned
 */
-struct sffs_inode *sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
+sffs_err_t sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
     struct sffs_inode *inode);
 
 /**
- *  Writes inode to a disk. The location is determined by a 
- *  i_inode_num inode identificator. On error, the false is returned 
- *  and error code saved in sffs context
+ *  Serializes inode to a disk in location placed in inode itself.
+ * 
+ *  If handler fails, the error code is returned
 */
-bool sffs_write_inode(struct sffs_inode *inode); 
+sffs_err_t sffs_write_inode(struct sffs_inode *inode); 
 
 /**
- *  Reads inode from disk into inode.
- *  Returns read inode in inode and return simultaneously.
- *  If error occurred, errno code saved in sffs context
- *  and NULL pointer returned
+ *  Reads inode by a given inode identificator (ino_id) and puts
+ *  it into inode.
+ * 
+ *  If handler fails, the error code is returned
 */
-struct sffs_inode *sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode);
+sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode);
 
-bool sffs_check_data_bm(bmap_t);
-bool sffs_set_data_bm(bmap_t);
+/**
+ *  Bitmap handlers for Data Blocks.
+ *  
+ *  If bitmap handlers fails, the error code is returned
+*/
+sffs_err_t sffs_check_data_bm(bmap_t);
+sffs_err_t sffs_set_data_bm(bmap_t);
 
-bool sffs_check_GIT_bm(bmap_t);
-bool sffs_set_GIT_bm(bmap_t);
+/**
+ *  Bitmap handlers for Global Inode Table
+*/
+sffs_err_t sffs_check_GIT_bm(bmap_t);
+sffs_err_t sffs_set_GIT_bm(bmap_t);
 
 #endif  // SFFS_H
