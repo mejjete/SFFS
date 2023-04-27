@@ -27,9 +27,8 @@ sffs_err_t __sffs_init()
     memset(&sffs_sb, 0, sizeof(struct sffs_superblock));
 
     /**
-     *  Determining the block size in FUSE only goes to 
-     *  determining block size of the underlying device 
-     *  or file system 
+     *  Determining the block size in FUSE only goes to determining 
+     *  block size of the underlying device or file system
     */
     struct statfs cwd_fs;
     if(statfs(sffs_ctx.cwd, &cwd_fs) < 0)
@@ -53,24 +52,20 @@ sffs_err_t __sffs_init()
     else if(block_size > getpagesize())
         return SFFS_ERR_INVBLK; 
 
+    /**
+     *  The location of the superblock is at a fixed address
+     *  which equals 1024 bytes from beginning of the disk
+    */
+    blk32_t sb_start = (1024 + sizeof(struct sffs_superblock)) >
+        block_size ? 1 : 0;
+
     blk32_t total_blocks = sffs_ctx.opts.fs_size / block_size;
     blk32_t total_inodes = (total_blocks * block_size) / SFFS_INODE_RATIO;
     blk32_t GIT_size_blks = (total_inodes / (block_size / (SFFS_INODE_SIZE * 2))) + 1;
     blk32_t GIT_bitmap_bytes = (total_inodes / 8) + 1;
     blk32_t GIT_bitmap_blks = (GIT_bitmap_bytes / block_size) + 1;
-    
-    /**
-     *  The location of the superblock is at a fixed location
-     *  which equals 1024 bytes from beginnig of the disk
-    */
-    blk32_t superblock_start = (1024 + sizeof(struct sffs_superblock)) >
-        block_size ? 1 : 0;
 
-    /**
-     *  To count the number of meta data blocks, we should add 2 first blocks 
-     *  (1 boot blocks and 1 superblock) + GIT size + GIT bitmap size
-    */
-    blk32_t meta_blks = ((superblock_start + 1) + GIT_bitmap_blks + GIT_size_blks);
+    blk32_t meta_blks = ((sb_start + 1) + GIT_bitmap_blks + GIT_size_blks);
 
     blk32_t data_blocks = total_blocks - meta_blks;
     blk32_t data_bitmap_bytes = (data_blocks / 8) + 1;
@@ -78,6 +73,14 @@ sffs_err_t __sffs_init()
 
     // Number of data blocks is effectively reduced by a data bitmap
     data_blocks -= data_bitmap_blks;
+
+    /**
+     *  After primary calculation, the size of the GIT must corrected.
+     *  This is because first size of Global Inode Table has been evaluated
+     *  without bitmaps
+    */
+    blk32_t grp_size_blks = SFFS_INODE_DATA_SIZE / 4;
+    total_inodes = data_blocks / grp_size_blks;
 
     blk32_t result = meta_blks + data_bitmap_blks + data_blocks;
     if(result != total_blocks)
@@ -108,7 +111,7 @@ sffs_err_t __sffs_init()
     sffs_sb.s_mount_count = mount_time;
     sffs_sb.s_write_time = mount_time;
 
-    u32_t acc_address = superblock_start + 1;
+    u32_t acc_address = sb_start + 1;
 
     /**
      *  Data bitmap location and size

@@ -26,6 +26,12 @@
 */
 #define SFFS_MAX_INODE_LIST 32
 
+/**
+ *  The number of primary blocks count. This value determines 
+ *  the number of blocks that indode structure will include
+*/
+#define SFFS_PR_BLOCKS  10
+
 #define SFFS_MAGIC  0x53FF5346
 
 /**
@@ -154,9 +160,7 @@ struct __attribute__ ((__packed__)) sffs_inode
     uint16_t i_mode;            // File type and permissions
     uint32_t i_next_entry;      // Pointer to next entry in Global Inode Table (GIT)
     uint16_t i_link_count;      // Link count
-
-    // Align fields
-    uint8_t __align1[66];       // padding
+    uint8_t __align1[66];       // padding (reserved for future use)
 };
 
 /**
