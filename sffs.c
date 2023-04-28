@@ -59,8 +59,19 @@ sffs_err_t __sffs_init()
     blk32_t sb_start = (1024 + sizeof(struct sffs_superblock)) >
         block_size ? 1 : 0;
 
-    blk32_t total_blocks = sffs_ctx.opts.fs_size / block_size;
+    /**
+     *  User specified number of reserved inodes. This value is a soft
+     *  limit and does not change the disk layout. It reserves 0 inodes by default.
+     *  Reserved inodes always occupies first n slots in GIT table
+    */
+    blk32_t resv_inodes = SFFS_RESV_INODES;
+
+    blk32_t total_blocks = (sffs_ctx.opts.fs_size / block_size) - resv_inodes;
     blk32_t total_inodes = (total_blocks * block_size) / SFFS_INODE_RATIO;
+    
+    /**
+     *  The reserved GIT and GIT bitmap features not supported yet
+    */
     blk32_t GIT_size_blks = (total_inodes / (block_size / (SFFS_INODE_SIZE * 2))) + 1;
     blk32_t GIT_bitmap_bytes = (total_inodes / 8) + 1;
     blk32_t GIT_bitmap_blks = (GIT_bitmap_bytes / block_size) + 1;
@@ -105,8 +116,6 @@ sffs_err_t __sffs_init()
     sffs_sb.s_prealloc_dir_blocks = 0;
     sffs_sb.s_inode_size = sizeof(struct sffs_inode);
     sffs_sb.s_inode_block_size = SFFS_INODE_DATA_SIZE;
-    sffs_sb.s_GIT_reserved = 0;
-    sffs_sb.s_GIT_bitmap_reserved = 0;
     time_t mount_time = time(NULL);
     sffs_sb.s_mount_count = mount_time;
     sffs_sb.s_write_time = mount_time;
@@ -125,11 +134,11 @@ sffs_err_t __sffs_init()
      *  GIT may have a reserved space for a future allocations
     */
     sffs_sb.s_GIT_bitmap_start =  acc_address;
-    sffs_sb.s_GIT_bitmap_size = GIT_bitmap_blks + sffs_sb.s_GIT_bitmap_reserved;
+    sffs_sb.s_GIT_bitmap_size = GIT_bitmap_blks;
     acc_address += GIT_bitmap_blks;
 
     sffs_sb.s_GIT_start = acc_address;
-    sffs_sb.s_GIT_size = GIT_size_blks + sffs_sb.s_GIT_reserved;
+    sffs_sb.s_GIT_size = GIT_size_blks;
     acc_address += GIT_size_blks;
     
     // In-memory superblock copy initialization

@@ -82,8 +82,10 @@
 #define SFFS_INODE_SIZE             sizeof(struct sffs_inode)
 #define SFFS_INODE_DATA_SIZE        SFFS_INODE_SIZE
 
+#define SFFS_RESV_INODES    0
+
 typedef uint32_t blk32_t;       // Data block ID
-typedef uint32_t ino32_t;       // Inode block ID
+typedef uint32_t ino32_t;       // Inode ID
 typedef uint32_t bmap_t;        // Bitmap ID
 
 typedef uint8_t  u8_t;
@@ -173,6 +175,7 @@ struct __attribute__ ((__packed__)) sffs_inode
 struct __attribute__ ((__packed__)) sffs_superblock
 {
     uint32_t s_inodes_count;            // Total inodes count
+    uint32_t s_inodes_reserved;         // Number of reserved inodes
     uint32_t s_blocks_count;            // Total blocks count 
     uint32_t s_free_blocks_count;       // Free blocks
     uint32_t s_free_inodes_count;       // Free inodes
@@ -200,10 +203,8 @@ struct __attribute__ ((__packed__)) sffs_superblock
     // Global Inode Table
     blk32_t s_GIT_bitmap_start;         // Global Inode Table bitmap starting block
     blk32_t s_GIT_bitmap_size;          // Global Inode Table bitmap size in blocks
-    blk32_t s_GIT_bitmap_reserved;      // Reserved blocks for GIT bitmap
     blk32_t s_GIT_start;                // Global Inode Table starting block
     blk32_t s_GIT_size;                 // Global Inode Table size in blocks
-    blk32_t s_GIT_reserved;             // Reserved blocks for GIT
 };
 
 #define SFFS_SB_SIZE        sizeof(struct sffs_superblock)
