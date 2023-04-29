@@ -37,7 +37,12 @@ void *sffs_init(struct fuse_conn_info *conn)
         __sffs_init();
 
         struct sffs_inode ino;
-        sffs_creat_inode(0, 0, 0, &ino);
+
+        ino32_t root;
+        mode_t mode = SFFS_IRWXU | SFFS_IRGRP | SFFS_IROTH;
+
+        sffs_alloc_inode(&root, mode);
+        sffs_creat_inode(root, mode, 0, &ino);
         sffs_write_inode(&ino);
         return conn;
     }

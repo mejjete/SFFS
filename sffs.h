@@ -111,6 +111,7 @@ typedef enum
     SFFS_ERR_INIT,              // Common error occured during mounting
     SFFS_ERR_MEMALLOC,          // Cannot allocate memory       
     SFFS_ERR_FS,                // File system structure is corrupted
+    SFFS_ERR_NOSPC,             // No free space
 
     /**
      *  Device erro codes
@@ -261,6 +262,17 @@ sffs_err_t sffs_write_inode(struct sffs_inode *inode);
  *  If handler fails, the error code is returned
 */
 sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode);
+
+/**
+ *  Extremely stupid implementation of inode allocation algorithm.
+ *  It does not implies on-disk layour nor trying to effective
+ *  place inode. It just sequentially scans GIT bitmap and chooses the 
+ *  first free inode position. Additionally, it does not consider mode 
+ *  argument as well. Tend to be rewritten further.
+ * 
+ *  If handler fails, the error code is returned
+*/
+sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode);
 
 /**
  *  Bitmap handlers for Data Blocks.

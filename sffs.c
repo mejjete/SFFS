@@ -247,7 +247,7 @@ sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode)
     if(inode == NULL)
         return SFFS_ERR_INVARG;
 
-    if(sffs_check_GIT_bm(inode->i_inode_num) != 0)
+    if(sffs_check_GIT_bm(ino_id) != 0)
     {
         sffs_err_t errc;
         ino32_t ino = inode->i_inode_num;
@@ -272,6 +272,31 @@ sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode)
     }
     else
         return false;
+}
+
+sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode)
+{
+    ino32_t resv_inodes = sffs_ctx.sb.s_inodes_reserved;
+    ino32_t max_inodes = sffs_ctx.sb.s_inodes_count - resv_inodes;
+
+    for(int i = resv_inodes; i < max_inodes; i++)
+    {
+        sffs_err_t errc = sffs_check_GIT_bm(i);
+        if(errc < 0)
+            return errc;
+        
+        if(errc == false)
+        {
+            errc = sffs_set_GIT_bm(i);
+            if(errc < 0)
+                return errc;
+
+            *ino_id = i;
+            return true;
+        }
+    }
+
+    return SFFS_ERR_NOSPC;
 }
 
 sffs_err_t sffs_check_data_bm(bmap_t id)
