@@ -41,11 +41,6 @@ sffs_err_t __sffs_init()
      *  It must satisfy two mandatory conditions:
      *  - not greater than OS's page size
      *  - be power of two
-     *  
-     *  The one optional condition (after mandatory are satisfied), 
-     *  is that file system's block size desirably must be:
-     *  1024 < block_size < 4096 as SFFS performance is optimized
-     *  to work within this range
     */
     if(!(block_size > 0 && (block_size & (block_size - 1)) == 0))
         return SFFS_ERR_INVBLK;
@@ -61,7 +56,7 @@ sffs_err_t __sffs_init()
 
     /**
      *  User specified number of reserved inodes. This value is a soft
-     *  limit and does not change the disk layout. It reserves 0 inodes by default.
+     *  limit and does not affect the disk layout. It reserves 0 inodes by default.
      *  Reserved inodes always occupies first n slots in GIT table
     */
     blk32_t resv_inodes = SFFS_RESV_INODES;
@@ -69,9 +64,6 @@ sffs_err_t __sffs_init()
     blk32_t total_blocks = (sffs_ctx.opts.fs_size / block_size) - resv_inodes;
     blk32_t total_inodes = (total_blocks * block_size) / SFFS_INODE_RATIO;
     
-    /**
-     *  The reserved GIT and GIT bitmap features not supported yet
-    */
     blk32_t GIT_size_blks = (total_inodes / (block_size / (SFFS_INODE_SIZE * 2))) + 1;
     blk32_t GIT_bitmap_bytes = (total_inodes / 8) + 1;
     blk32_t GIT_bitmap_blks = (GIT_bitmap_bytes / block_size) + 1;
@@ -86,7 +78,7 @@ sffs_err_t __sffs_init()
     data_blocks -= data_bitmap_blks;
 
     /**
-     *  After primary calculation, the size of the GIT must corrected.
+     *  The size of the GIT must corrected.
      *  This is because first size of Global Inode Table has been evaluated
      *  without bitmaps
     */
@@ -130,8 +122,7 @@ sffs_err_t __sffs_init()
     acc_address += data_bitmap_blks;
 
     /**
-     *  GIT and GIT bitmap locations and sizes
-     *  GIT may have a reserved space for a future allocations
+     *  GIT and GIT bitmap locations and size
     */
     sffs_sb.s_GIT_bitmap_start =  acc_address;
     sffs_sb.s_GIT_bitmap_size = GIT_bitmap_blks;
