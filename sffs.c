@@ -182,6 +182,12 @@ sffs_err_t sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
     if(inode == NULL)
         return SFFS_ERR_INVARG;
 
+    mode_t md = mode & SFFS_IFMT;
+
+    // Inode must have only 1 bit set in type section
+    if((md >> 12) != 1)
+        return -1;
+
     inode->i_inode_num = ino_id;
     inode->i_next_entry = 0;
     inode->i_link_count = 0;
@@ -272,6 +278,17 @@ sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode)
     }
     else
         return false;
+}
+
+sffs_err_t sffs_update_inode(struct sffs_inode *old_inode, struct sffs_inode *new_inode)
+{
+    if(!old_inode || !new_inode)
+        return SFFS_ERR_INVARG;
+    
+    if(old_inode->i_inode_num != new_inode->i_inode_num)
+        return SFFS_ERR_INVARG;
+    
+    return sffs_write_inode(new_inode);
 }
 
 sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode)

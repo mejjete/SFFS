@@ -12,9 +12,8 @@
 #include <stdbool.h>
 
 /**
- *  Default inode ration for SFFS is 1 : 128KB. This value
- *  is determined by size of an inode data size, that holds
- *  pointers to data blocks
+ *  Default inode ration for SFFS is 1 : 128KB. This value is determined 
+ *  by inode data size, which holds pointers to data blocks
 */
 #define SFFS_INODE_RATIO    131072
 
@@ -25,12 +24,6 @@
  *  for a single inode
 */
 #define SFFS_MAX_INODE_LIST 32
-
-/**
- *  The number of primary blocks count. This value determines 
- *  the number of blocks that indode structure will include
-*/
-#define SFFS_PR_BLOCKS  10
 
 #define SFFS_MAGIC  0x53FF5346
 
@@ -71,6 +64,8 @@
 #define	SFFS_IFLNK	0120000	    // Symbolic link
 #define	SFFS_IFSOCK	0140000	    // Socket
 
+#define	SFFS_IFMT	0170000	    // File type bits in i_mode
+
 /**
  *  SFFS differentiate between inode entry and inode itself.
  *  The inode is the sffs_inode structure. 
@@ -104,7 +99,7 @@ typedef enum
     __DEFAULT2 = 0,
     
     /**
-     *  Basic erro handler codes
+     *  Basic error handler codes
     */
     SFFS_ERR_INVARG = -1,       // Invalid arguments passed to a handler
     SFFS_ERR_INVBLK = -2,       // Invalid block size
@@ -114,7 +109,7 @@ typedef enum
     SFFS_ERR_NOSPC,             // No free space
 
     /**
-     *  Device erro codes
+     *  Device error codes
     */
     SFFS_ERR_DEV_WRITE,         // Device write operation error
     SFFS_ERR_DEV_READ,          // Device read operation error
@@ -210,9 +205,7 @@ struct __attribute__ ((__packed__)) sffs_superblock
 
 #define SFFS_SB_SIZE        sizeof(struct sffs_superblock)
 
-/**
- *  sffs.c
-*/
+/*      sffs.c      */
 
 /**
  *  Do basic initialization stuff, called during mounting.
@@ -234,7 +227,7 @@ sffs_err_t sffs_read_sb(u8_t sb_id, struct sffs_superblock *sb);
 
 /**
  *  Writes superblock pointed by sb to a specified location.
- *  The reson for sb_id look sffs_read_sb.
+ *  The reason for sb_id look sffs_read_sb.
 */
 sffs_err_t sffs_write_sb(u8_t sb_id, struct sffs_superblock *sb);
 
@@ -257,11 +250,22 @@ sffs_err_t sffs_write_inode(struct sffs_inode *inode);
 
 /**
  *  Reads inode by a given inode identificator (ino_id) and puts
- *  it into inode.
+ *  it into inode. If blocks pointer is not a NULL, it copies
+ *  the sequential 
  * 
  *  If handler fails, the error code is returned
 */
 sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode);
+ 
+/**
+ *  Updates current inode
+*/
+sffs_err_t sffs_update_inode(struct sffs_inode *old_inode, struct sffs_inode *new_inode);
+
+/**
+ *  Put inode data block at blk_id to result
+*/
+sffs_err_t sffs_get_inode_blk(ino32_t ino_id, blk32_t blk_id, blk32_t *result);
 
 /**
  *  Extremely stupid implementation of inode allocation algorithm.
