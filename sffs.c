@@ -4,7 +4,7 @@
 */
 
 /**
- *  Implementation of a sffs core functions
+ *  Implementations of a sffs core functions
 */
 
 #include <string.h>
@@ -15,8 +15,8 @@
 #include "sffs_device.h"
 #include "time.h"
 
-static sffs_err_t __sffs_check_bm(blk32_t, bmap_t);
-static sffs_err_t __sffs_set_bm(blk32_t, bmap_t);
+static sffs_err_t __sffs_check_bm(blk32_t *, bmap_t);
+static sffs_err_t __sffs_set_bm(blk32_t *, bmap_t);
 
 /**
  *  SFFS file system initialization code
@@ -93,12 +93,13 @@ sffs_err_t __sffs_init()
      *  After primary calculation has been done, superblock must be filled up
     */
     sffs_sb.s_block_size = block_size;
-    sffs_sb.s_blocks_count = total_blocks;
-    sffs_sb.s_free_blocks_count = total_blocks;
-    sffs_sb.s_blocks_per_group = 0;
+    sffs_sb.s_blocks_count = data_blocks;
+    sffs_sb.s_free_blocks_count = data_blocks;
+    sffs_sb.s_blocks_per_group = grp_size_blks;
+    sffs_sb.s_group_count = total_inodes;
+    sffs_sb.s_free_groups = total_inodes;
     sffs_sb.s_inodes_count = total_inodes;
     sffs_sb.s_free_inodes_count = total_inodes;
-    sffs_sb.s_mount_time = 0;
     sffs_sb.s_max_mount_count = SFFS_MAX_MOUNT;
     sffs_sb.s_max_inode_list = SFFS_MAX_INODE_LIST;
     sffs_sb.s_magic = SFFS_MAGIC;
@@ -141,7 +142,7 @@ sffs_err_t __sffs_init()
     memset(sffs_ctx.cache, 0, block_size);
 
     /**
-     *  SFFS superblock serializaing
+     *  SFFS superblock serialization
     */
     if(lseek64(sffs_ctx.disk_id, 1024, SEEK_SET) < 0)
         return SFFS_ERR_DEV_SEEK;
@@ -195,6 +196,9 @@ sffs_err_t sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
     inode->i_mode = mode;
     inode->i_blks_count = 0;
     inode->i_bytes_rem = 0;
+    inode->i_uid_owner = getuid();
+    inode->i_gid_owner = getgid();
+    inode->i_grp_info = SFFS_GRP_SEQ;
 
     // Time constants
     time_t tm = time(NULL);
@@ -318,66 +322,100 @@ sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode)
 
 sffs_err_t sffs_check_data_bm(bmap_t id)
 {
-    return __sffs_check_bm(sffs_ctx.sb.s_data_bitmap_start, id);
+    blk32_t block_size = sffs_ctx.sb.s_block_size;
+    blk32_t bm_start = sffs_ctx.sb.s_data_bitmap_start;
+
+    blk32_t block_id = id / block_size;
+    blk32_t bm_id = block_id % block_id;
+
+    sffs_err_t errc;
+    errc = sffs_read_blk(bm_start + block_id, sffs_ctx.cache, 1);
+    if(errc < 0)
+        return errc;
+
+    return __sffs_check_bm(sffs_ctx.cache, bm_id);
 }
 
 sffs_err_t sffs_set_data_bm(bmap_t id)
 {
-    return __sffs_set_bm(sffs_ctx.sb.s_data_bitmap_start, id);
+    blk32_t block_size = sffs_ctx.sb.s_block_size;
+    blk32_t bm_start = sffs_ctx.sb.s_data_bitmap_start;
+
+    blk32_t block_id = id / block_size;
+    blk32_t bm_id = block_id % block_id;
+
+    sffs_err_t errc;
+    errc = sffs_read_blk(bm_start + block_id, sffs_ctx.cache, 1);
+    if(errc < 0)
+        return errc;
+
+    errc = __sffs_set_bm(sffs_ctx.cache, bm_id);
+    if(errc < 0)
+        return errc;
+    
+    errc = sffs_write_blk(bm_start + block_id, sffs_ctx.cache, 1);
+    if(errc < 0)
+        return errc;
+    return true;
 }
 
 sffs_err_t sffs_check_GIT_bm(bmap_t id)
 {
-    return __sffs_check_bm(sffs_ctx.sb.s_GIT_bitmap_start, id);
+    blk32_t block_size = sffs_ctx.sb.s_block_size;
+    blk32_t bm_start = sffs_ctx.sb.s_GIT_bitmap_start;
+
+    blk32_t block_id = id / block_size;
+    blk32_t bm_id = block_id % block_id;
+
+    sffs_err_t errc;
+    errc = sffs_read_blk(bm_start + block_id, sffs_ctx.cache, 1);
+    if(errc < 0)
+        return errc;
+
+    return __sffs_check_bm(sffs_ctx.cache, bm_id);
 }
 
 sffs_err_t sffs_set_GIT_bm(bmap_t id)
 {
-    return __sffs_set_bm(sffs_ctx.sb.s_GIT_bitmap_start, id);
-}
+    blk32_t block_size = sffs_ctx.sb.s_block_size;
+    blk32_t bm_start = sffs_ctx.sb.s_GIT_bitmap_start;
 
-static sffs_err_t __sffs_check_bm(blk32_t bm_start, bmap_t id)
-{
+    blk32_t block_id = id / block_size;
+    blk32_t bm_id = block_id % block_id;
+
     sffs_err_t errc;
-    u32_t block_size = sffs_ctx.sb.s_block_size;
-    u32_t byte_id = id / 8;
-    u32_t bit_id = id % 8;
+    errc = sffs_read_blk(bm_start + block_id, sffs_ctx.cache, 1);
+    if(errc < 0)
+        return errc;
 
-    errc = sffs_read_blk(bm_start + (byte_id / block_size), sffs_ctx.cache, 1);
+    errc = __sffs_set_bm(sffs_ctx.cache, bm_id);
     if(errc < 0)
         return errc;
     
-    u8_t byte = *((u8_t *)(sffs_ctx.cache + byte_id));
+    errc = sffs_write_blk(bm_start + block_id, sffs_ctx.cache, 1);
+    if(errc < 0)
+        return errc;
+    return true;
+}
+
+static sffs_err_t __sffs_check_bm(blk32_t *bm, bmap_t id)
+{
+    u32_t byte_id = id / 8;
+    u32_t bit_id = id % 8;
+    u8_t byte = *((u8_t *)(bm + byte_id));
     if((byte & (1 << bit_id)) == (1 << bit_id))
         return true;
     else 
         return false;
 }
 
-static sffs_err_t __sffs_set_bm(blk32_t bm_start, bmap_t id)
-{
-    sffs_err_t errc;
-    u32_t block_size = sffs_ctx.sb.s_block_size;
+static sffs_err_t __sffs_set_bm(blk32_t *bm, bmap_t id)
+{   
     u32_t byte_id = id / 8;
     u32_t bit_id = id % 8;
-    blk32_t victim_block = bm_start + (byte_id / block_size); 
-
-    errc = sffs_read_blk(victim_block, sffs_ctx.cache, 1);
-    if(errc < 0)
-        return errc;
-    
-    u8_t *cache = (u8_t *) sffs_ctx.cache;
-    u8_t byte = *(cache + byte_id);
-
+    u8_t byte = *((u8_t *)(bm + byte_id));
     if((byte & (1 << bit_id)) != (1 << bit_id))
-    {
         byte |= (1 << bit_id);
-        memcpy(cache + byte_id, &byte, sizeof(u8_t));
-        
-        errc = sffs_write_blk(victim_block, sffs_ctx.cache, 1);
-        if(errc < 0)
-            return errc;
-    }
     else 
         return SFFS_ERR_FS;
 

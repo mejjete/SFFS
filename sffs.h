@@ -19,11 +19,14 @@
 
 #define SFFS_MAX_MOUNT  16
 
+#ifndef SFFS_MAX_INODE_LIST
 /**
- *  Limits the maximum inode size, thus, file size
- *  for a single inode
+ *  This number is the maximum number of inode list that one single 
+ *  file can support. Limits the maximum file size. Particularly this
+ *  value is defined for a debugging purposes.
 */
 #define SFFS_MAX_INODE_LIST 32
+#endif 
 
 #define SFFS_MAGIC  0x53FF5346
 
@@ -67,12 +70,36 @@
 #define	SFFS_IFMT	0170000	    // File type bits in i_mode
 
 /**
+ *  SFFS file type checker
+*/
+#define	SFFS_ISTYPE(mode, mask)	(((mode) & SFFS_IFMT) == (mask))
+
+#define	SFFS_ISDIR(mode)	SFFS_ISTYPE((mode), __S_IFDIR)
+#define	SFFS_ISCHR(mode)	SFFS_ISTYPE((mode), __S_IFCHR)
+#define	SFFS_ISBLK(mode)	SFFS_ISTYPE((mode), __S_IFBLK)
+#define	SFFS_ISREG(mode)	SFFS_ISTYPE((mode), __S_IFREG)
+#define SfFS_ISFIFO(mode)   SFFS_ISTYPE((mode), __S_IFIFO)
+#define SFFS_ISLNK(mode)    SFFS_ISTYPE((mode), __S_IFLNK)
+
+/**
+ *  Special flags for controlling allocation.
+ *  SFFS_GRP_SEQ - used to indicate that inode's group block consists
+ *  only of their own blocks, thus, group blocks associated with this 
+ *  inode not interwined with blocks relating to other inodes
+ *  SFFS_GRP_NOSEQ - used to indicate the oposite, where the inode's
+ *  group blocks is non-holistic and contains blocks that relates
+ *  to other inodes.
+*/
+#define SFFS_GRP_SEQ        0000001
+#define SFFS_GRP_NOSEQ      0000002
+
+/**
  *  SFFS differentiate between inode entry and inode itself.
  *  The inode is the sffs_inode structure. 
  *  The inode entry consists of an inode followed by a data blocks, 
  *  which size must be determined at the initialization time by
  *  __sffs_init function. But now it is a macro which represents 
- *  the predefine value for this two entries
+ *  the predefine values for this two entries
 */
 #define SFFS_INODE_SIZE             sizeof(struct sffs_inode)
 #define SFFS_INODE_DATA_SIZE        SFFS_INODE_SIZE
@@ -124,6 +151,17 @@ typedef enum
 */
 struct __attribute__ ((__packed__)) sffs_inode
 {
+    ino32_t i_inode_num;        // Inode number
+    uint32_t i_next_entry;      // Pointer to next entry in Global Inode Table (GIT)
+    uint32_t i_uid_owner;       // Owner ID
+    uint32_t i_gid_owner;       // Owner group ID
+    uint32_t i_flags;           // File system specific flags
+    uint32_t i_blks_count;      // File size in blocks
+    uint16_t i_bytes_rem;       // Remainder of the size in blocks
+    uint16_t i_mode;            // File type and permissions
+    uint16_t i_link_count;      // Link count
+    uint16_t i_grp_info;        // Inode group's flags
+
     union
     {
         // For 32-bit systems
@@ -149,16 +187,19 @@ struct __attribute__ ((__packed__)) sffs_inode
         } t64;
     } tv;
 
-    ino32_t i_inode_num;        // Inode number
-    uint32_t i_uid_owner;       // Owner ID
-    uint32_t i_gid_owner;       // Owner group ID
-    uint32_t i_flags;           // File system specific flags
-    uint32_t i_blks_count;      // File size in blocks
-    uint16_t i_bytes_rem;       // Remainder of the size in blocks
-    uint16_t i_mode;            // File type and permissions
-    uint32_t i_next_entry;      // Pointer to next entry in Global Inode Table (GIT)
-    uint16_t i_link_count;      // Link count
-    uint8_t __align1[66];       // padding (reserved for future use)
+    uint8_t __align1[64];       // padding (reserved for future use)
+};
+
+/**
+ *  SFFS supports list of inodes that accumulate data blocks. List of inodes
+ *  consist of a primary inode, that holds struct sffs_inode and number of 
+ *  supplementary inodes that holds sffs_inode_list structure at the header
+ *  and sequential number of data blocks corresponding to primary inode
+*/
+struct __attribute__ ((__packed__)) sffs_inode_list
+{
+    u32_t i_inode_num;
+    u32_t i_next_entry;
 };
 
 /**
@@ -172,11 +213,13 @@ struct __attribute__ ((__packed__)) sffs_superblock
 {
     uint32_t s_inodes_count;            // Total inodes count
     uint32_t s_inodes_reserved;         // Number of reserved inodes
-    uint32_t s_blocks_count;            // Total blocks count 
+    uint32_t s_blocks_count;            // Total data blocks count
     uint32_t s_free_blocks_count;       // Free blocks
     uint32_t s_free_inodes_count;       // Free inodes
     uint32_t s_block_size;              // Block's size in bytes
     uint32_t s_blocks_per_group;        // Number of blocks per group
+    uint32_t s_group_count;             // Number of group blocks
+    uint32_t s_free_groups;             // Number of free group blockss
     uint16_t s_mount_time;              // Low precision mount time
     uint16_t s_write_time;              // Low precision last write time
     uint16_t s_mount_count;             // Number of active mount points
@@ -291,5 +334,11 @@ sffs_err_t sffs_set_data_bm(bmap_t);
 */
 sffs_err_t sffs_check_GIT_bm(bmap_t);
 sffs_err_t sffs_set_GIT_bm(bmap_t);
+
+/**
+ *  Allocates blk_count data blocks for inode. Appends newly 
+ *  allocated blocks to inode.
+*/
+sffs_err_t sffs_alloc_data(size_t blk_count, struct sffs_inode *inode);
 
 #endif  // SFFS_H
