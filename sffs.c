@@ -178,16 +178,22 @@ sffs_err_t sffs_write_sb(u8_t sb_id, struct sffs_superblock *sb)
 }
 
 sffs_err_t sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
-    struct sffs_inode *inode)
+    struct sffs_inode_mem **ino_mem)
 {
-    if(inode == NULL)
+    if(ino_mem == NULL)
         return SFFS_ERR_INVARG;
 
-    mode_t md = mode & SFFS_IFMT;
+    if((*ino_mem = malloc(sffs_ctx.sb.s_inode_size + 
+        sffs_ctx.sb.s_inode_block_size)) == NULL)
+        return SFFS_ERR_MEMALLOC;
 
-    // Inode must have only 1 bit set in type section
-    if((md >> 12) != 1)
-        return -1;
+    struct sffs_inode *inode = &((*ino_mem)->ino);
+    (*ino_mem)->size = sffs_ctx.sb.s_inode_size + sffs_ctx.sb.s_inode_block_size;
+    
+    // Inode's mode must have only 1 bit set
+    mode_t md = (mode & SFFS_IFMT) >> 12;    
+    if(!((md & (md - 1)) == 0 && md != 0))
+        return SFFS_ERR_INVARG;
 
     inode->i_inode_num = ino_id;
     inode->i_next_entry = 0;
@@ -210,10 +216,12 @@ sffs_err_t sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
     return 0;
 }
 
-sffs_err_t sffs_write_inode(struct sffs_inode *inode)
+sffs_err_t sffs_write_inode(struct sffs_inode_mem *ino_mem)
 {
-    if(inode == NULL)
+    if(ino_mem == NULL)
         return SFFS_ERR_INVARG;
+
+    struct sffs_inode *inode = &ino_mem->ino;
 
     if(sffs_check_GIT_bm(inode->i_inode_num) == 0)
     {
@@ -235,7 +243,7 @@ sffs_err_t sffs_write_inode(struct sffs_inode *inode)
         if(errc < 0)
             return errc;
         
-        memcpy(sffs_ctx.cache + block_offset, inode, sffs_ctx.sb.s_inode_size);
+        memcpy(sffs_ctx.cache + block_offset, ino_mem, ino_mem->size);
 
         // First update GIT table
         errc = sffs_write_blk(ino_block, sffs_ctx.cache, 1);
@@ -252,12 +260,14 @@ sffs_err_t sffs_write_inode(struct sffs_inode *inode)
         return false;
 }
 
-sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode)
+sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode_mem *ino_mem)
 {
-    if(inode == NULL)
+    if(ino_mem == NULL)
         return SFFS_ERR_INVARG;
 
-    if(sffs_check_GIT_bm(ino_id) != 0)
+    struct sffs_inode *inode = &ino_mem->ino;
+
+    if(sffs_check_GIT_bm(ino_id) == 0)
     {
         sffs_err_t errc;
         ino32_t ino = inode->i_inode_num;
@@ -277,19 +287,22 @@ sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode)
         if(errc < 0)
             return errc;
         
-        memcpy(inode, sffs_ctx.cache + block_offset, sffs_ctx.sb.s_inode_size);
+        memcpy(inode, sffs_ctx.cache + block_offset, ino_mem->size);
         return true;
     }
     else
         return false;
 }
 
-sffs_err_t sffs_update_inode(struct sffs_inode *old_inode, struct sffs_inode *new_inode)
+sffs_err_t sffs_update_inode(struct sffs_inode_mem *old_inode, struct sffs_inode_mem *new_inode)
 {
     if(!old_inode || !new_inode)
         return SFFS_ERR_INVARG;
     
-    if(old_inode->i_inode_num != new_inode->i_inode_num)
+    struct sffs_inode *old_i = &old_inode->ino;
+    struct sffs_inode *new_i = &old_inode->ino;
+
+    if(old_i->i_inode_num != new_i->i_inode_num)
         return SFFS_ERR_INVARG;
     
     return sffs_write_inode(new_inode);

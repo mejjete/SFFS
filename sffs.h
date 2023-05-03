@@ -145,7 +145,8 @@ typedef enum
 }sffs_err_t;
 
 /**
- *  SFFS inode. Represents a single file entry
+ *  On-disk representation of an SFFS inode. 
+ *  Represents a single file entry
  * 
  *  REV. 1
 */
@@ -191,10 +192,24 @@ struct __attribute__ ((__packed__)) sffs_inode
 };
 
 /**
+ *  In-memory representation of an SFFS inode
+ * 
+ *  Rev. 1
+*/
+struct __attribute__ ((__packed__)) sffs_inode_mem 
+{
+    struct sffs_inode ino;      // Inode instance
+    uint32_t size;              // Size in bytes of this record
+    blk32_t blk[];              // Direct data blocks of inode
+};
+
+/**
  *  SFFS supports list of inodes that accumulate data blocks. List of inodes
  *  consist of a primary inode, that holds struct sffs_inode and number of 
  *  supplementary inodes that holds sffs_inode_list structure at the header
- *  and sequential number of data blocks corresponding to primary inode
+ *  and sequential number of data blocks corresponding to primary inode.
+ * 
+ *  Rev. 1
 */
 struct __attribute__ ((__packed__)) sffs_inode_list
 {
@@ -282,14 +297,14 @@ sffs_err_t sffs_write_sb(u8_t sb_id, struct sffs_superblock *sb);
  *  If handler fails, the error code is returned
 */
 sffs_err_t sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
-    struct sffs_inode *inode);
+    struct sffs_inode_mem **ino_mem);
 
 /**
  *  Serializes inode to a disk in location placed in inode itself.
  * 
  *  If handler fails, the error code is returned
 */
-sffs_err_t sffs_write_inode(struct sffs_inode *inode); 
+sffs_err_t sffs_write_inode(struct sffs_inode_mem *inode); 
 
 /**
  *  Reads inode by a given inode identificator (ino_id) and puts
@@ -298,12 +313,12 @@ sffs_err_t sffs_write_inode(struct sffs_inode *inode);
  * 
  *  If handler fails, the error code is returned
 */
-sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode *inode);
+sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode_mem *inode);
  
 /**
  *  Updates current inode
 */
-sffs_err_t sffs_update_inode(struct sffs_inode *old_inode, struct sffs_inode *new_inode);
+sffs_err_t sffs_update_inode(struct sffs_inode_mem *old_inode, struct sffs_inode_mem *new_inode);
 
 /**
  *  Put inode data block at blk_id to result
@@ -312,7 +327,7 @@ sffs_err_t sffs_get_inode_blk(ino32_t ino_id, blk32_t blk_id, blk32_t *result);
 
 /**
  *  Extremely stupid implementation of inode allocation algorithm.
- *  It does not implies on-disk layour nor trying to effective
+ *  It does not implies on-disk layout not trying to effectively
  *  place inode. It just sequentially scans GIT bitmap and chooses the 
  *  first free inode position. Additionally, it does not consider mode 
  *  argument as well. Tend to be rewritten further.

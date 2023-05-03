@@ -36,14 +36,13 @@ void *sffs_init(struct fuse_conn_info *conn)
         
         __sffs_init();
 
-        struct sffs_inode ino;
-
         ino32_t root;
         mode_t mode = SFFS_IRWXU | SFFS_IRGRP | SFFS_IROTH;
 
+        struct sffs_inode_mem *inode;
         sffs_alloc_inode(&root, mode);
-        sffs_creat_inode(root, mode, 0, &ino);
-        sffs_write_inode(&ino);
+        sffs_creat_inode(root, mode, 0, &inode);
+        sffs_write_inode(inode);
         return conn;
     }
 
@@ -131,12 +130,14 @@ int sffs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offs
 		filler(buf, "file54", &statbuf, 0);
 		// filler(buf, "file349", NULL, 0);
 
-        struct sffs_inode ino;
-        sffs_read_inode(0, &ino);
-        statbuf.st_ino = ino.i_inode_num;
-        statbuf.st_blocks = ino.i_blks_count;
+        struct sffs_inode_mem *ino_mem;
+        sffs_creat_inode(0, 0, 0, &ino_mem);
+        sffs_read_inode(0, ino_mem);
+        statbuf.st_ino = ino_mem->ino.i_inode_num;
+        statbuf.st_blocks = ino_mem->ino.i_blks_count;
         statbuf.st_blksize = 12345;
         filler(buf, "root", &statbuf, 0);
+        free(ino_mem);
 	}
 
     return 0;
