@@ -336,13 +336,12 @@ sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode)
 sffs_err_t sffs_check_data_bm(bmap_t id)
 {
     blk32_t block_size = sffs_ctx.sb.s_block_size;
-    blk32_t bm_start = sffs_ctx.sb.s_data_bitmap_start;
-
-    blk32_t block_id = id / block_size;
-    blk32_t bm_id = block_id % block_id;
+    blk32_t bm_start = sffs_ctx.sb.s_GIT_bitmap_start;
+    blk32_t bm_block = id / block_size;     // Block number that holds id bitmap value
+    bmap_t bm_id = id % block_size;         // Bit number wihtin victim block
 
     sffs_err_t errc;
-    errc = sffs_read_blk(bm_start + block_id, sffs_ctx.cache, 1);
+    errc = sffs_read_blk(bm_start + bm_block, sffs_ctx.cache, 1);
     if(errc < 0)
         return errc;
 
@@ -352,13 +351,12 @@ sffs_err_t sffs_check_data_bm(bmap_t id)
 sffs_err_t sffs_set_data_bm(bmap_t id)
 {
     blk32_t block_size = sffs_ctx.sb.s_block_size;
-    blk32_t bm_start = sffs_ctx.sb.s_data_bitmap_start;
-
-    blk32_t block_id = id / block_size;
-    blk32_t bm_id = block_id % block_id;
+    blk32_t bm_start = sffs_ctx.sb.s_GIT_bitmap_start;
+    blk32_t bm_block = id / block_size;     // Block number that holds id bitmap value
+    bmap_t bm_id = id % block_size;         // Bit number wihtin victim block
 
     sffs_err_t errc;
-    errc = sffs_read_blk(bm_start + block_id, sffs_ctx.cache, 1);
+    errc = sffs_read_blk(bm_start + bm_block, sffs_ctx.cache, 1);
     if(errc < 0)
         return errc;
 
@@ -366,7 +364,7 @@ sffs_err_t sffs_set_data_bm(bmap_t id)
     if(errc < 0)
         return errc;
     
-    errc = sffs_write_blk(bm_start + block_id, sffs_ctx.cache, 1);
+    errc = sffs_write_blk(bm_start + bm_block, sffs_ctx.cache, 1);
     if(errc < 0)
         return errc;
     return true;
@@ -376,12 +374,11 @@ sffs_err_t sffs_check_GIT_bm(bmap_t id)
 {
     blk32_t block_size = sffs_ctx.sb.s_block_size;
     blk32_t bm_start = sffs_ctx.sb.s_GIT_bitmap_start;
-
-    blk32_t block_id = id / block_size;
-    blk32_t bm_id = block_id % block_id;
+    blk32_t bm_block = id / block_size;     // Block number that holds id bitmap value
+    bmap_t bm_id = id % block_size;         // Bit number wihtin victim block
 
     sffs_err_t errc;
-    errc = sffs_read_blk(bm_start + block_id, sffs_ctx.cache, 1);
+    errc = sffs_read_blk(bm_start + bm_block, sffs_ctx.cache, 1);
     if(errc < 0)
         return errc;
 
@@ -392,12 +389,11 @@ sffs_err_t sffs_set_GIT_bm(bmap_t id)
 {
     blk32_t block_size = sffs_ctx.sb.s_block_size;
     blk32_t bm_start = sffs_ctx.sb.s_GIT_bitmap_start;
-
-    blk32_t block_id = id / block_size;
-    blk32_t bm_id = block_id % block_id;
+    blk32_t bm_block = id / block_size;     // Block number that holds id bitmap value
+    bmap_t bm_id = id % block_size;         // Bit number wihtin victim block
 
     sffs_err_t errc;
-    errc = sffs_read_blk(bm_start + block_id, sffs_ctx.cache, 1);
+    errc = sffs_read_blk(bm_start + bm_block, sffs_ctx.cache, 1);
     if(errc < 0)
         return errc;
 
@@ -405,7 +401,7 @@ sffs_err_t sffs_set_GIT_bm(bmap_t id)
     if(errc < 0)
         return errc;
     
-    errc = sffs_write_blk(bm_start + block_id, sffs_ctx.cache, 1);
+    errc = sffs_write_blk(bm_start + bm_block, sffs_ctx.cache, 1);
     if(errc < 0)
         return errc;
     return true;
@@ -415,8 +411,8 @@ static sffs_err_t __sffs_check_bm(blk32_t *bm, bmap_t id)
 {
     u32_t byte_id = id / 8;
     u32_t bit_id = id % 8;
-    u8_t byte = *((u8_t *)(bm + byte_id));
-    if((byte & (1 << bit_id)) == (1 << bit_id))
+    u8_t *byte = (u8_t *)(bm + byte_id);
+    if((*byte & (1 << bit_id)) == (1 << bit_id))
         return true;
     else 
         return false;
@@ -426,9 +422,9 @@ static sffs_err_t __sffs_set_bm(blk32_t *bm, bmap_t id)
 {   
     u32_t byte_id = id / 8;
     u32_t bit_id = id % 8;
-    u8_t byte = *((u8_t *)(bm + byte_id));
-    if((byte & (1 << bit_id)) != (1 << bit_id))
-        byte |= (1 << bit_id);
+    u8_t *byte = (u8_t *)(bm + byte_id);
+    if((*byte & (1 << bit_id)) != (1 << bit_id))
+        *byte |= (1 << bit_id);
     else 
         return SFFS_ERR_FS;
 
