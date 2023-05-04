@@ -337,23 +337,27 @@ sffs_err_t sffs_get_inode_blk(ino32_t ino_id, blk32_t blk_id, blk32_t *result);
 sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode);
 
 /**
- *  Bitmap handlers for Data Blocks.
- *  
- *  If bitmap handlers fails, the error code is returned
-*/
-sffs_err_t sffs_check_data_bm(bmap_t);
-sffs_err_t sffs_set_data_bm(bmap_t);
-
-/**
- *  Bitmap handlers for Global Inode Table
-*/
-sffs_err_t sffs_check_GIT_bm(bmap_t);
-sffs_err_t sffs_set_GIT_bm(bmap_t);
-
-/**
  *  Allocates blk_count data blocks for inode. Appends newly 
  *  allocated blocks to inode.
 */
 sffs_err_t sffs_alloc_data(size_t blk_count, struct sffs_inode *inode);
+
+/*      bitmaps.c       */
+
+/**
+ *  Bitmap handlers for Data Blocks.
+ *  If bitmap handlers fails, the error code is returned
+*/
+sffs_err_t sffs_set_data_bm(bmap_t);
+sffs_err_t sffs_unset_data_bm(bmap_t);
+sffs_err_t sffs_check_data_bm(bmap_t);
+
+/**
+ *  Bitmap handlers for Global Inode Table.
+ *  If bitmap handlers fails, the error code is returned
+*/
+sffs_err_t sffs_set_GIT_bm(bmap_t);
+sffs_err_t sffs_unset_GIT_bm(bmap_t);
+sffs_err_t sffs_check_GIT_bm(bmap_t);
 
 #endif  // SFFS_H
