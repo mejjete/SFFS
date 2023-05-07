@@ -322,7 +322,7 @@ sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode)
     return SFFS_ERR_NOSPC;
 }
 
-sffs_err_t sffs_alloc_inode_list(struct sffs_inode_mem *ino_mem, size_t size)
+sffs_err_t sffs_alloc_inode_list(ino32_t size, struct sffs_inode_mem *ino_mem)
 {
     if(!ino_mem)
         return SFFS_ERR_INVARG;

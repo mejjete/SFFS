@@ -345,7 +345,7 @@ sffs_err_t sffs_alloc_data(size_t blk_count, struct sffs_inode *inode);
  * 
  *  If handler fails, the error code is returned
 */
-sffs_err_t sffs_alloc_inode_list(struct sffs_inode_mem *ino_mem, size_t size);
+sffs_err_t sffs_alloc_inode_list(ino32_t size, struct sffs_inode_mem *ino_mem);
 
 /*      bitmaps.c       */
 
