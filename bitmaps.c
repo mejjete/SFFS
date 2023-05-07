@@ -9,8 +9,8 @@
 
 static sffs_err_t __sffs_set_bm(blk32_t, bmap_t, u8_t);
 static sffs_err_t __sffs_check_bm(blk32_t, bmap_t);
-static sffs_err_t __set_bm(blk32_t *, bmap_t, u8_t);
-static sffs_err_t __check_bm(blk32_t *, bmap_t);
+sffs_err_t __set_bm(blk32_t *, bmap_t, u8_t);
+sffs_err_t __check_bm(blk32_t *, bmap_t);
 
 sffs_err_t sffs_set_data_bm(bmap_t id)
 { 
@@ -80,7 +80,7 @@ sffs_err_t __sffs_check_bm(blk32_t bm, bmap_t id)
     return __check_bm(sffs_ctx.cache, bm_id);
 }
 
-static sffs_err_t __check_bm(blk32_t *bm, bmap_t id)
+sffs_err_t __check_bm(blk32_t *bm, bmap_t id)
 {
     u32_t byte_id = id / 8;
     u32_t bit_id = id % 8;
@@ -91,7 +91,7 @@ static sffs_err_t __check_bm(blk32_t *bm, bmap_t id)
         return false;
 }
 
-static sffs_err_t __set_bm(blk32_t *bm, bmap_t id, u8_t value)
+sffs_err_t __set_bm(blk32_t *bm, bmap_t id, u8_t value)
 {   
     u32_t byte_id = id / 8;
     u32_t bit_id = id % 8;
