@@ -152,8 +152,10 @@ typedef enum
 */
 struct __attribute__ ((__packed__)) sffs_inode
 {
-    ino32_t i_inode_num;        // Inode number
+    ino32_t  i_inode_num;       // Inode number
     uint32_t i_next_entry;      // Pointer to next entry in Global Inode Table (GIT)
+    uint32_t i_list_size;       // Size of the inode list including first (primary) inode
+    ino32_t  i_last_lentry;     // Last inode list entry
     uint32_t i_uid_owner;       // Owner ID
     uint32_t i_gid_owner;       // Owner group ID
     uint32_t i_flags;           // File system specific flags
@@ -161,7 +163,6 @@ struct __attribute__ ((__packed__)) sffs_inode
     uint16_t i_bytes_rem;       // Remainder of the size in blocks
     uint16_t i_mode;            // File type and permissions
     uint16_t i_link_count;      // Link count
-    uint16_t i_grp_info;        // Inode group's flags
 
     union
     {
@@ -188,7 +189,7 @@ struct __attribute__ ((__packed__)) sffs_inode
         } t64;
     } tv;
 
-    uint8_t __align1[64];       // padding (reserved for future use)
+    uint8_t __align1[58];       // padding (reserved for future use)
 };
 
 /**
@@ -199,7 +200,6 @@ struct __attribute__ ((__packed__)) sffs_inode
 struct __attribute__ ((__packed__)) sffs_inode_mem 
 {
     struct sffs_inode ino;      // Inode instance
-    uint32_t size;              // Size in bytes of this record
     blk32_t blk[];              // Direct data blocks of inode
 };
 
@@ -316,14 +316,9 @@ sffs_err_t sffs_write_inode(struct sffs_inode_mem *inode);
 sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode_mem *inode);
  
 /**
- *  Updates current inode
+ *  Updates inode
 */
 sffs_err_t sffs_update_inode(struct sffs_inode_mem *old_inode, struct sffs_inode_mem *new_inode);
-
-/**
- *  Put inode data block at blk_id to result
-*/
-sffs_err_t sffs_get_inode_blk(ino32_t ino_id, blk32_t blk_id, blk32_t *result);
 
 /**
  *  Extremely stupid implementation of inode allocation algorithm.
@@ -339,8 +334,18 @@ sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode);
 /**
  *  Allocates blk_count data blocks for inode. Appends newly 
  *  allocated blocks to inode.
+ * 
+ *  If hander fails, the error code is returned
 */
 sffs_err_t sffs_alloc_data(size_t blk_count, struct sffs_inode *inode);
+
+/**
+ *  Allocates size additional inode list entries. Inode list entries will
+ *  be appended to ino_mem inode with all subsequent changes.
+ * 
+ *  If handler fails, the error code is returned
+*/
+sffs_err_t sffs_alloc_inode_list(struct sffs_inode_mem *ino_mem, size_t size);
 
 /*      bitmaps.c       */
 
@@ -351,6 +356,7 @@ sffs_err_t sffs_alloc_data(size_t blk_count, struct sffs_inode *inode);
 sffs_err_t sffs_set_data_bm(bmap_t);
 sffs_err_t sffs_unset_data_bm(bmap_t);
 sffs_err_t sffs_check_data_bm(bmap_t);
+sffs_err_t __set_bm(blk32_t *, bmap_t, u8_t);
 
 /**
  *  Bitmap handlers for Global Inode Table.
@@ -359,5 +365,6 @@ sffs_err_t sffs_check_data_bm(bmap_t);
 sffs_err_t sffs_set_GIT_bm(bmap_t);
 sffs_err_t sffs_unset_GIT_bm(bmap_t);
 sffs_err_t sffs_check_GIT_bm(bmap_t);
+sffs_err_t __check_bm(blk32_t *, bmap_t);
 
 #endif  // SFFS_H

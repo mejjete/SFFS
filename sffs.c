@@ -321,3 +321,108 @@ sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode)
 
     return SFFS_ERR_NOSPC;
 }
+
+sffs_err_t sffs_alloc_inode_list(struct sffs_inode_mem *ino_mem, size_t size)
+{
+    if(!ino_mem)
+        return SFFS_ERR_INVARG;
+
+    // Maximum inode entry list has been reached
+    if(SFFS_MAX_INODE_LIST != 0)
+        if(ino_mem->ino.i_list_size + size > SFFS_MAX_INODE_LIST)
+            return SFFS_ERR_NOSPC;
+
+    // No free inodes to allocate
+    if(size > sffs_ctx.sb.s_free_inodes_count)
+        return SFFS_ERR_NOSPC;
+    
+    struct sffs_inode *inode = &ino_mem->ino;
+    ino32_t *list_entries = malloc(sizeof(ino32_t) * size);
+    bool seq_list = true;
+
+    // Try to allocate inode list entries right next to the base inode
+    ino32_t ino = inode->i_inode_num;
+    blk32_t ino_per_block = sffs_ctx.block_size / (SFFS_INODE_SIZE + 
+        SFFS_INODE_DATA_SIZE);
+    size_t ino_id_within_block = ino % ino_per_block;
+    
+    if(ino_id_within_block + size > ino_per_block)
+        goto non_seq_alloc; 
+
+    for(int i = 0; i < size; i++)
+    {
+        ino32_t next_entry = inode->i_inode_num + i + 1;
+        if(sffs_check_GIT_bm(next_entry) != 0)
+        {
+            seq_list = false;
+            break;
+        }
+        
+        list_entries[i] = next_entry;
+    }
+
+    if(seq_list == true)
+        goto alloc_done;
+
+/**
+ *  This label means that file system cannot sequentially allocate
+ *  inode list and will try another (random) allocation technique
+*/
+non_seq_alloc:
+    ino32_t free_inodes = sffs_ctx.sb.s_free_inodes_count;
+    ino32_t allocated = 0;
+
+    for(int i = 0; i < free_inodes && allocated < size; i++)
+    {
+        if(sffs_check_GIT_bm(i) == false)
+        {
+            list_entries[allocated] = i;
+            allocated++; 
+        }
+    }
+
+    if(allocated < size)
+        return SFFS_ERR_FS;
+
+/**
+ *  This label means that list_entries are full of requested entries and
+ *  further must be pushed on-disk
+ */ 
+alloc_done:
+    ino32_t ino_size = sffs_ctx.sb.s_inode_size;
+    ino32_t ino_data_size = sffs_ctx.sb.s_inode_block_size;
+    ino32_t ino_entry_size = ino_size * ino_data_size;
+
+    struct sffs_inode_list inode_list;
+    struct sffs_inode_mem *current_inode = malloc(ino_entry_size);
+    if(!current_inode)
+        return SFFS_ERR_MEMALLOC;
+
+    // Create on-disk list of inode entries
+    for(int i = 0; i < size; i++)
+    {        
+        inode_list.i_inode_num = list_entries[i];
+        inode_list.i_next_entry = i + 1 == size ? 0 : list_entries[i + 1];
+        memcpy(&current_inode->ino, &inode_list, sizeof(struct sffs_inode_list));
+
+        sffs_err_t errc = sffs_write_inode(current_inode);
+        if(errc < 0)
+            return errc;
+    }
+    
+    // Modify primary inode to point to the remaining list
+    inode->i_next_entry = list_entries[0];
+    inode->i_list_size += size;
+    inode->i_last_lentry = list_entries[size - 1];
+
+    sffs_err_t errc = sffs_write_inode(ino_mem);
+    if(errc < 0)
+        return errc;
+
+    for(int i = 0; i < size; i++)
+        sffs_set_GIT_bm(list_entries[i]);
+
+    sffs_ctx.sb.s_free_inodes_count -= size;
+
+    return 0;
+}
