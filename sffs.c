@@ -185,7 +185,6 @@ sffs_err_t sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
         return SFFS_ERR_MEMALLOC;
 
     struct sffs_inode *inode = &((*ino_mem)->ino);
-    (*ino_mem)->size = sffs_ctx.sb.s_inode_size + sffs_ctx.sb.s_inode_block_size;
     
     // Inode's mode must have only 1 bit set
     mode_t md = (mode & SFFS_IFMT) >> 12;    
@@ -201,7 +200,8 @@ sffs_err_t sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
     inode->i_bytes_rem = 0;
     inode->i_uid_owner = getuid();
     inode->i_gid_owner = getgid();
-    inode->i_grp_info = SFFS_GRP_SEQ;
+    inode->i_list_size = 1;
+    inode->i_last_lentry = ino_id;
 
     // Time constants
     time_t tm = time(NULL);
@@ -220,51 +220,45 @@ sffs_err_t sffs_write_inode(struct sffs_inode_mem *ino_mem)
 
     struct sffs_inode *inode = &ino_mem->ino;
 
-    if(sffs_check_GIT_bm(inode->i_inode_num) == 0)
-    {
-        sffs_err_t errc;
-        ino32_t ino = inode->i_inode_num;
-        
-        ino32_t ino_entry_size = sffs_ctx.sb.s_inode_block_size + 
-            sffs_ctx.sb.s_inode_size;
+    sffs_err_t errc;
+    ino32_t ino = inode->i_inode_num;
+    
+    ino32_t ino_entry_size = sffs_ctx.sb.s_inode_block_size + 
+        sffs_ctx.sb.s_inode_size;
 
-        ino32_t ino_per_block = sffs_ctx.block_size / ino_entry_size;
+    ino32_t ino_per_block = sffs_ctx.block_size / ino_entry_size;
+    blk32_t git_block = ino / ino_per_block;
+    blk32_t block_offset = (ino % ino_per_block) * 
+        ino_entry_size;
 
-        blk32_t git_block = ino / ino_per_block;
-        blk32_t block_offset = (ino % ino_per_block) * 
-            sffs_ctx.sb.s_inode_size;
+    blk32_t ino_block = sffs_ctx.sb.s_GIT_start + git_block;
 
-        blk32_t ino_block = sffs_ctx.sb.s_GIT_start + git_block;
+    errc = sffs_read_blk(ino_block, sffs_ctx.cache, 1);
+    if(errc < 0)
+        return errc;
+    
+    memcpy(sffs_ctx.cache + block_offset, ino_mem, ino_entry_size);
 
-        errc = sffs_read_blk(ino_block, sffs_ctx.cache, 1);
-        if(errc < 0)
-            return errc;
-        
-        memcpy(sffs_ctx.cache + block_offset, ino_mem, ino_mem->size);
+    // First update GIT table
+    errc = sffs_write_blk(ino_block, sffs_ctx.cache, 1);
+    if(errc < 0)
+        return errc;
+    
+    // Second: update superblock
+    sffs_ctx.sb.s_free_inodes_count--;
 
-        // First update GIT table
-        errc = sffs_write_blk(ino_block, sffs_ctx.cache, 1);
-        if(errc < 0)
-            return errc;
-        
-        // Second: update superblock
-        sffs_ctx.sb.s_free_inodes_count--;
-
-        // Third: update bitmap
-        return sffs_set_GIT_bm(ino);
-    }
-    else
-        return false;
+    // Third: update bitmap
+    return sffs_set_GIT_bm(ino);
 }
 
 sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode_mem *ino_mem)
 {
-    if(ino_mem == NULL)
+    if(!ino_mem)
         return SFFS_ERR_INVARG;
 
     struct sffs_inode *inode = &ino_mem->ino;
 
-    if(sffs_check_GIT_bm(ino_id) == 0)
+    if(sffs_check_GIT_bm(ino_id) != 0)
     {
         sffs_err_t errc;
         ino32_t ino = inode->i_inode_num;
@@ -273,10 +267,9 @@ sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode_mem *ino_mem)
             sffs_ctx.sb.s_inode_size;
 
         ino32_t ino_per_block = sffs_ctx.block_size / ino_entry_size;
-
         blk32_t git_block = ino / ino_per_block;
         blk32_t block_offset = (ino % ino_per_block) * 
-            sffs_ctx.sb.s_inode_size;
+            ino_entry_size;
 
         blk32_t ino_block = sffs_ctx.sb.s_GIT_start + git_block;
 
@@ -284,7 +277,7 @@ sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode_mem *ino_mem)
         if(errc < 0)
             return errc;
         
-        memcpy(inode, sffs_ctx.cache + block_offset, ino_mem->size);
+        memcpy(inode, sffs_ctx.cache + block_offset, ino_entry_size);
         return true;
     }
     else
@@ -307,6 +300,9 @@ sffs_err_t sffs_update_inode(struct sffs_inode_mem *old_inode, struct sffs_inode
 
 sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode)
 {
+    if(!ino_id)
+        return SFFS_ERR_NOSPC;
+
     ino32_t resv_inodes = sffs_ctx.sb.s_inodes_reserved;
     ino32_t max_inodes = sffs_ctx.sb.s_inodes_count - resv_inodes;
 
@@ -318,10 +314,6 @@ sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode)
         
         if(errc == false)
         {
-            errc = sffs_set_GIT_bm(i);
-            if(errc < 0)
-                return errc;
-
             *ino_id = i;
             return true;
         }
