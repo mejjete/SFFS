@@ -14,7 +14,7 @@ sffs_err_t __check_bm(blk32_t *, bmap_t);
 
 sffs_err_t sffs_set_data_bm(bmap_t id)
 { 
-    return __sffs_set_bm(sffs_ctx.sb.s_GIT_bitmap_start, id, 1); 
+    return __sffs_set_bm(sffs_ctx.sb.s_data_bitmap_start, id, 1); 
 }
 
 sffs_err_t sffs_set_GIT_bm(bmap_t id)
