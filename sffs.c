@@ -261,14 +261,12 @@ sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode_mem *ino_mem)
     if(sffs_check_GIT_bm(ino_id) != 0)
     {
         sffs_err_t errc;
-        ino32_t ino = inode->i_inode_num;
-        
         ino32_t ino_entry_size = sffs_ctx.sb.s_inode_block_size + 
             sffs_ctx.sb.s_inode_size;
 
         ino32_t ino_per_block = sffs_ctx.block_size / ino_entry_size;
-        blk32_t git_block = ino / ino_per_block;
-        blk32_t block_offset = (ino % ino_per_block) * 
+        blk32_t git_block = ino_id / ino_per_block;
+        blk32_t block_offset = (ino_id % ino_per_block) * 
             ino_entry_size;
 
         blk32_t ino_block = sffs_ctx.sb.s_GIT_start + git_block;
