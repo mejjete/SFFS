@@ -322,7 +322,7 @@ sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode)
 
 sffs_err_t sffs_alloc_inode_list(ino32_t size, struct sffs_inode_mem *ino_mem)
 {
-    if(!ino_mem)
+    if(!ino_mem || size == 0)
         return SFFS_ERR_INVARG;
 
     // Maximum inode entry list has been reached
@@ -349,7 +349,12 @@ sffs_err_t sffs_alloc_inode_list(ino32_t size, struct sffs_inode_mem *ino_mem)
 
     for(int i = 0; i < size; i++)
     {
-        ino32_t next_entry = inode->i_inode_num + i + 1;
+        /**
+         *  Take the last inode list entry to ensure that
+         *  inode list is sequential as much as possible
+        */
+        ino32_t next_entry = inode->i_last_lentry + i + 1;
+        
         if(sffs_check_GIT_bm(next_entry) != 0)
         {
             seq_list = false;
