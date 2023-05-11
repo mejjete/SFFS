@@ -396,10 +396,13 @@ alloc_done:
     ino32_t ino_data_size = sffs_ctx.sb.s_inode_block_size;
     ino32_t ino_entry_size = ino_size * ino_data_size;
 
-    struct sffs_inode_mem *current_inode = malloc(ino_entry_size);
+    struct sffs_inode_mem *current_inode;
+    errc = sffs_creat_inode(0, SFFS_IFREG, 0, &current_inode);
+    if(errc < 0)
+        return errc;
+
     if(!current_inode)
         return SFFS_ERR_MEMALLOC;
-    memset(&current_inode->ino, 0, ino_entry_size);
 
     // Create on-disk list of inode entries
     for(int i = 0; i < size; i++)
@@ -444,5 +447,9 @@ alloc_done:
         return errc;
 
     sffs_ctx.sb.s_free_inodes_count -= size;
+
+    free(list_entries);
+    free(buf_inode);
+    free(current_inode);
     return 0;
 }
