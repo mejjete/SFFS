@@ -22,8 +22,8 @@
 #ifndef SFFS_MAX_INODE_LIST
 /**
  *  This number is the maximum number of inode list that one single 
- *  file can support. Limits the maximum file size. Particularly this
- *  value is defined for a debugging purposes.
+ *  file can support. Limits the maximum file size. This value is defined 
+ *  for debugging purposes.
 */
 #define SFFS_MAX_INODE_LIST 32
 #endif 
@@ -80,18 +80,6 @@
 #define	SFFS_ISREG(mode)	SFFS_ISTYPE((mode), __S_IFREG)
 #define SfFS_ISFIFO(mode)   SFFS_ISTYPE((mode), __S_IFIFO)
 #define SFFS_ISLNK(mode)    SFFS_ISTYPE((mode), __S_IFLNK)
-
-/**
- *  Special flags for controlling allocation.
- *  SFFS_GRP_SEQ - used to indicate that inode's group block consists
- *  only of their own blocks, thus, group blocks associated with this 
- *  inode not interwined with blocks relating to other inodes
- *  SFFS_GRP_NOSEQ - used to indicate the oposite, where the inode's
- *  group blocks is non-holistic and contains blocks that relates
- *  to other inodes.
-*/
-#define SFFS_GRP_SEQ        0000001
-#define SFFS_GRP_NOSEQ      0000002
 
 /**
  *  SFFS differentiate between inode entry and inode itself.
@@ -213,7 +201,7 @@ struct __attribute__ ((__packed__)) sffs_inode_mem
 */
 struct __attribute__ ((__packed__)) sffs_inode_list
 {
-    u32_t i_inode_num;
+    ino32_t i_inode_num;
     u32_t i_next_entry;
 };
 
@@ -314,11 +302,6 @@ sffs_err_t sffs_write_inode(struct sffs_inode_mem *inode);
  *  If handler fails, the error code is returned
 */
 sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode_mem *inode);
- 
-/**
- *  Updates inode
-*/
-sffs_err_t sffs_update_inode(struct sffs_inode_mem *old_inode, struct sffs_inode_mem *new_inode);
 
 /**
  *  Extremely stupid implementation of inode allocation algorithm.
@@ -337,7 +320,7 @@ sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode);
  * 
  *  If hander fails, the error code is returned
 */
-sffs_err_t sffs_alloc_data(size_t blk_count, struct sffs_inode *inode);
+sffs_err_t sffs_alloc_data(size_t blk_count, struct sffs_inode_mem *inode);
 
 /**
  *  Allocates size additional inode list entries. Inode list entries will
