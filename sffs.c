@@ -393,36 +393,53 @@ alloc_done:
     ino32_t ino_data_size = sffs_ctx.sb.s_inode_block_size;
     ino32_t ino_entry_size = ino_size * ino_data_size;
 
-    struct sffs_inode_list inode_list;
     struct sffs_inode_mem *current_inode = malloc(ino_entry_size);
     if(!current_inode)
         return SFFS_ERR_MEMALLOC;
+    memset(&current_inode->ino, 0, ino_entry_size);
 
     // Create on-disk list of inode entries
     for(int i = 0; i < size; i++)
     {        
-        inode_list.i_inode_num = list_entries[i];
-        inode_list.i_next_entry = i + 1 == size ? 0 : list_entries[i + 1];
-        memcpy(&current_inode->ino, &inode_list, sizeof(struct sffs_inode_list));
+        current_inode->ino.i_inode_num = list_entries[i];
+        current_inode->ino.i_next_entry = i + 1 == size ? 0 : list_entries[i + 1];
 
         sffs_err_t errc = sffs_write_inode(current_inode);
         if(errc < 0)
             return errc;
     }
-    
-    // Modify primary inode to point to the remaining list
-    inode->i_next_entry = list_entries[0];
-    inode->i_list_size += size;
-    inode->i_last_lentry = list_entries[size - 1];
 
-    sffs_err_t errc = sffs_write_inode(ino_mem);
+    /**
+     *  Add newly allocated inode entries to inode list
+    */
+    struct sffs_inode_mem *buf_inode;
+    sffs_err_t errc = sffs_creat_inode(0, SFFS_IFREG, 0, &buf_inode);
     if(errc < 0)
         return errc;
 
-    for(int i = 0; i < size; i++)
-        sffs_set_GIT_bm(list_entries[i]);
+    if(inode->i_last_lentry != inode->i_inode_num)
+    {
+        errc = sffs_read_inode(inode->i_last_lentry, buf_inode);
+        if(errc < 0)
+            return errc;
+        
+        struct sffs_inode *buf = &buf_inode->ino;
+        buf->i_next_entry = list_entries[0];
+
+        errc = sffs_write_inode(buf_inode);
+        if(errc < 0)
+            return errc;
+    }
+    else 
+        inode->i_next_entry = list_entries[0];
+
+    inode->i_list_size += size;
+    inode->i_last_lentry = list_entries[size - 1];
+
+    errc = sffs_write_inode(ino_mem);
+    if(errc < 0)
+        return errc;
 
     sffs_ctx.sb.s_free_inodes_count -= size;
-
     return 0;
 }
