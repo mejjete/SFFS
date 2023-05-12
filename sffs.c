@@ -282,20 +282,6 @@ sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode_mem *ino_mem)
         return false;
 }
 
-sffs_err_t sffs_update_inode(struct sffs_inode_mem *old_inode, struct sffs_inode_mem *new_inode)
-{
-    if(!old_inode || !new_inode)
-        return SFFS_ERR_INVARG;
-    
-    struct sffs_inode *old_i = &old_inode->ino;
-    struct sffs_inode *new_i = &old_inode->ino;
-
-    if(old_i->i_inode_num != new_i->i_inode_num)
-        return SFFS_ERR_INVARG;
-    
-    return sffs_write_inode(new_inode);
-}
-
 sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode)
 {
     if(!ino_id)
@@ -392,12 +378,8 @@ non_seq_alloc:
  *  further must be pushed on-disk
  */ 
 alloc_done:
-    ino32_t ino_size = sffs_ctx.sb.s_inode_size;
-    ino32_t ino_data_size = sffs_ctx.sb.s_inode_block_size;
-    ino32_t ino_entry_size = ino_size * ino_data_size;
-
     struct sffs_inode_mem *current_inode;
-    errc = sffs_creat_inode(0, SFFS_IFREG, 0, &current_inode);
+    sffs_err_t errc = sffs_creat_inode(0, SFFS_IFREG, 0, &current_inode);
     if(errc < 0)
         return errc;
 
@@ -419,7 +401,7 @@ alloc_done:
      *  Add newly allocated inode entries to inode list
     */
     struct sffs_inode_mem *buf_inode;
-    sffs_err_t errc = sffs_creat_inode(0, SFFS_IFREG, 0, &buf_inode);
+    errc = sffs_creat_inode(0, SFFS_IFREG, 0, &buf_inode);
     if(errc < 0)
         return errc;
 
@@ -451,5 +433,90 @@ alloc_done:
     free(list_entries);
     free(buf_inode);
     free(current_inode);
+    return 0;
+}
+
+sffs_err_t sffs_get_data_block_info(blk32_t block_number, int flags, 
+    struct sffs_data_block_info *db_info, struct sffs_inode_mem *ino_mem)
+{
+    if(!ino_mem || !db_info)
+        return SFFS_ERR_INVARG;
+    
+    if(ino_mem->ino.i_blks_count < block_number)
+        return SFFS_ERR_INVARG;
+    
+    sffs_err_t errc;
+    bool read_blk = false;
+    blk32_t block_id = block_number;
+
+    // Control flags that change behavior of this handler
+    if(flags != 0)
+    {
+        if((flags & SFFS_GET_BLK_LT) == SFFS_GET_BLK_LT)
+            block_id = ino_mem->ino.i_blks_count - 1;
+        if((flags & SFFS_GET_BLK_RD) == SFFS_GET_BLK_RD)
+            read_blk = true;
+    }
+
+    u32_t ino_size = sffs_ctx.sb.s_inode_size;
+    u32_t ino_data_size = sffs_ctx.sb.s_inode_block_size;
+    u32_t ino_entry_size = ino_size + ino_data_size;
+    u32_t pr_ino_blks = ino_data_size / sizeof(blk32_t);
+    u32_t supp_ino_blks = (ino_entry_size - SFFS_INODE_LIST_SIZE) / sizeof(blk32_t);
+
+    u32_t blk_ino;
+    struct sffs_inode_mem *buf;
+    errc = sffs_creat_inode(0, SFFS_IFREG, 0, &buf);
+    if(errc < 0)
+            return errc;
+
+    if(block_number < pr_ino_blks)
+    {
+        buf = ino_mem;
+        blk_ino = block_number;
+    }
+    else 
+    {
+        block_id -= pr_ino_blks;
+        u32_t supp_ino_id = block_id / supp_ino_blks;
+        blk_ino = block_id % supp_ino_blks; 
+        if(blk_ino != 0)
+            supp_ino_id++;
+
+        // Inode list is smaller than requested block's inode list entry
+        if(supp_ino_id > ino_mem->ino.i_list_size)
+            return SFFS_ERR_INVARG;
+
+        ino32_t supp_ino = ino_mem->ino.i_next_entry;
+        for(u32_t i = 0; i < supp_ino_id && supp_ino != 0; i++)
+        {
+            errc = sffs_read_inode(supp_ino, buf);
+            if(errc < 0)
+                return errc;
+            supp_ino = buf->ino.i_next_entry;
+        }
+    }
+
+    struct sffs_inode_list *ino_list = (struct sffs_inode_list *) buf;
+    db_info->block_id = *(ino_list->blks + blk_ino);
+    db_info->inode_id = buf->ino.i_inode_num;
+    db_info->list_id = blk_ino;
+    db_info->flags = 0;             // reserved field
+
+    // Read the block itself if requested
+    if(read_blk)
+    {
+        db_info->blks = malloc(sizeof(blk32_t) * sffs_ctx.sb.s_block_size);
+        if(!db_info->blks)
+            return SFFS_ERR_MEMALLOC;
+
+        errc = sffs_read_blk(db_info->block_id, db_info->blks, 1);
+        if(errc < 0)
+            return errc;
+    }
+    else 
+        db_info->blks = NULL;
+    
+    free(buf);
     return 0;
 }

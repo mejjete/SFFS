@@ -91,8 +91,14 @@
 */
 #define SFFS_INODE_SIZE             sizeof(struct sffs_inode)
 #define SFFS_INODE_DATA_SIZE        SFFS_INODE_SIZE
+#define SFFS_RESV_INODES            0
+#define SFFS_INODE_LIST_SIZE        (sizeof(struct sffs_inode_list) - sizeof(blk32_t *))
 
-#define SFFS_RESV_INODES    0
+/**
+ *  Special values that control the behaviour of the sffs_get_data_block_info
+*/
+#define SFFS_GET_BLK_RD             0000001     // Read block content
+#define SFFS_GET_BLK_LT             0000002     // Get last block of the inode
 
 typedef uint32_t blk32_t;       // Data block ID
 typedef uint32_t ino32_t;       // Inode ID
@@ -185,10 +191,10 @@ struct __attribute__ ((__packed__)) sffs_inode
  * 
  *  Rev. 1
 */
-struct __attribute__ ((__packed__)) sffs_inode_mem 
+struct sffs_inode_mem 
 {
     struct sffs_inode ino;      // Inode instance
-    blk32_t blk[];              // Direct data blocks of inode
+    blk32_t blks[];             // Direct data blocks of inode
 };
 
 /**
@@ -199,10 +205,11 @@ struct __attribute__ ((__packed__)) sffs_inode_mem
  * 
  *  Rev. 1
 */
-struct __attribute__ ((__packed__)) sffs_inode_list
+struct sffs_inode_list
 {
-    ino32_t i_inode_num;
-    u32_t i_next_entry;
+    ino32_t  i_inode_num;
+    uint32_t i_next_entry;
+    blk32_t  blks[];
 };
 
 /**
@@ -250,6 +257,20 @@ struct __attribute__ ((__packed__)) sffs_superblock
 };
 
 #define SFFS_SB_SIZE        sizeof(struct sffs_superblock)
+
+/**
+ *  Holds basic information about data block and the block content.
+*/
+struct sffs_data_block_info
+{
+    ino32_t inode_id;       // Inode id that holds this block
+    blk32_t block_id;       // Block id
+    int flags;              // Flags that describe both block and inode characteristics 
+                            // reserved and not used yet
+                            
+    u32_t   list_id;        // Position of block id within inode
+    blk32_t *blks;          // Pointer to block's content (optional)
+};
 
 /*      sffs.c      */
 
@@ -320,7 +341,7 @@ sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode);
  * 
  *  If hander fails, the error code is returned
 */
-sffs_err_t sffs_alloc_data(size_t blk_count, struct sffs_inode_mem *inode);
+sffs_err_t sffs_alloc_data_blocks(size_t blk_count, struct sffs_inode_mem *inode);
 
 /**
  *  Allocates size additional inode list entries. Inode list entries will
@@ -329,6 +350,15 @@ sffs_err_t sffs_alloc_data(size_t blk_count, struct sffs_inode_mem *inode);
  *  If handler fails, the error code is returned
 */
 sffs_err_t sffs_alloc_inode_list(ino32_t size, struct sffs_inode_mem *ino_mem);
+
+/**
+ *  Reads the data block information from inode and block itself 
+ *  if needed
+ * 
+ *  If handler fails, the error code is returned
+*/
+sffs_err_t sffs_get_data_block_info(blk32_t block_number, int flags, 
+    struct sffs_data_block_info *db_info, struct sffs_inode_mem *ino_mem);
 
 /*      bitmaps.c       */
 
