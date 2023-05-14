@@ -464,7 +464,8 @@ sffs_err_t sffs_get_data_block_info(blk32_t block_number, int flags,
     u32_t pr_ino_blks = ino_data_size / sizeof(blk32_t);
     u32_t supp_ino_blks = (ino_entry_size - SFFS_INODE_LIST_SIZE) / sizeof(blk32_t);
 
-    u32_t blk_ino;
+    u32_t blk_off;
+    u32_t *blk_ptr;
     struct sffs_inode_mem *buf;
     errc = sffs_creat_inode(0, SFFS_IFREG, 0, &buf);
     if(errc < 0)
@@ -472,16 +473,14 @@ sffs_err_t sffs_get_data_block_info(blk32_t block_number, int flags,
 
     if(block_number < pr_ino_blks)
     {
-        buf = ino_mem;
-        blk_ino = block_number;
+        blk_ptr = ino_mem->blks;
+        blk_off = block_number;
     }
     else 
     {
         block_id -= pr_ino_blks;
-        u32_t supp_ino_id = block_id / supp_ino_blks;
-        blk_ino = block_id % supp_ino_blks; 
-        if(blk_ino != 0)
-            supp_ino_id++;
+        u32_t supp_ino_id = (block_id / supp_ino_blks) + 1;
+        blk_off = block_id % supp_ino_blks; 
 
         // Inode list is smaller than requested block's inode list entry
         if(supp_ino_id > ino_mem->ino.i_list_size)
@@ -493,14 +492,15 @@ sffs_err_t sffs_get_data_block_info(blk32_t block_number, int flags,
             errc = sffs_read_inode(supp_ino, buf);
             if(errc < 0)
                 return errc;
+            struct sffs_inode_list *list = (struct sffs_inode_list *) buf;
+            blk_ptr = list->blks;
             supp_ino = buf->ino.i_next_entry;
         }
     }
 
-    struct sffs_inode_list *ino_list = (struct sffs_inode_list *) buf;
-    db_info->block_id = *(ino_list->blks + blk_ino);
+    db_info->block_id = *(blk_ptr + blk_off);
     db_info->inode_id = buf->ino.i_inode_num;
-    db_info->list_id = blk_ino;
+    db_info->list_id = blk_off;
     db_info->flags = 0;             // reserved field
 
     // Read the block itself if requested

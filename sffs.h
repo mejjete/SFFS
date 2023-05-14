@@ -92,7 +92,7 @@
 #define SFFS_INODE_SIZE             sizeof(struct sffs_inode)
 #define SFFS_INODE_DATA_SIZE        SFFS_INODE_SIZE
 #define SFFS_RESV_INODES            0
-#define SFFS_INODE_LIST_SIZE        (sizeof(struct sffs_inode_list) - sizeof(blk32_t *))
+#define SFFS_INODE_LIST_SIZE        sizeof(struct sffs_inode_list)
 
 /**
  *  Special values that control the behaviour of the sffs_get_data_block_info
