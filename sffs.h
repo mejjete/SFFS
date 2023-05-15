@@ -269,7 +269,7 @@ struct sffs_data_block_info
                             // reserved and not used yet
                             
     u32_t   list_id;        // Position of block id within inode
-    blk32_t *blks;          // Pointer to block's content (optional)
+    blk32_t *content;       // Pointer to block's content (optional)
 };
 
 /*      sffs.c      */
@@ -353,7 +353,9 @@ sffs_err_t sffs_alloc_inode_list(ino32_t size, struct sffs_inode_mem *ino_mem);
 
 /**
  *  Reads the data block information from inode and block itself 
- *  if needed
+ *  if needed. If caller requested data block to be read in memory
+ *  then he is responsible for deallocating memory that's being 
+ *  allocated into db_info->content
  * 
  *  If handler fails, the error code is returned
 */

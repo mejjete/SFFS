@@ -467,6 +467,10 @@ sffs_err_t sffs_get_data_block_info(blk32_t block_number, int flags,
     u32_t blk_off;
     u32_t blk_ino;
     u32_t *blk_ptr;
+    struct sffs_inode_mem *buf;
+    errc = sffs_creat_inode(0, SFFS_IFREG, 0, &buf);
+    if(errc < 0)
+        return errc;
 
     if(block_number < pr_ino_blks)
     {
@@ -485,11 +489,6 @@ sffs_err_t sffs_get_data_block_info(blk32_t block_number, int flags,
             return SFFS_ERR_INVARG;
 
         ino32_t supp_ino = ino_mem->ino.i_next_entry;
-        struct sffs_inode_mem *buf;
-        errc = sffs_creat_inode(0, SFFS_IFREG, 0, &buf);
-        if(errc < 0)
-            return errc;
-
         for(u32_t i = 0; i < supp_ino_id && supp_ino != 0; i++)
         {
             errc = sffs_read_inode(supp_ino, buf);
@@ -500,8 +499,6 @@ sffs_err_t sffs_get_data_block_info(blk32_t block_number, int flags,
             blk_ino = list->i_inode_num;
             supp_ino = buf->ino.i_next_entry;
         }
-
-        free(buf);
     }
 
     db_info->block_id = *(blk_ptr + blk_off);
@@ -509,18 +506,20 @@ sffs_err_t sffs_get_data_block_info(blk32_t block_number, int flags,
     db_info->list_id = blk_off;
     db_info->flags = 0;             // reserved field
 
+    free(buf);
+
     // Read the block itself if requested
     if(read_blk)
     {
-        db_info->blks = malloc(sizeof(blk32_t) * sffs_ctx.sb.s_block_size);
-        if(!db_info->blks)
+        db_info->content = malloc(sizeof(blk32_t) * sffs_ctx.sb.s_block_size);
+        if(!db_info->content)
             return SFFS_ERR_MEMALLOC;
 
-        errc = sffs_read_blk(db_info->block_id, db_info->blks, 1);
+        errc = sffs_read_blk(db_info->block_id, db_info->content, 1);
         if(errc < 0)
             return errc;
     }
     else 
-        db_info->blks = NULL;
+        db_info->content = NULL;
     return 0;
 }
