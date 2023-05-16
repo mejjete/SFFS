@@ -272,6 +272,25 @@ struct sffs_data_block_info
     blk32_t *content;       // Pointer to block's content (optional)
 };
 
+/**
+ *  SFFS direntry structure filles up the directory blocks.
+ *  Directory blocks consist of a bunch of entries of 
+ *  struct sffs_direntry. Those entries form a linked list
+ *  of directory entries within one block.
+ * 
+ *  Directory block has the same structure as ext4 file system has
+*/
+struct sffs_direntry
+{
+    ino32_t ino_id;         // Inode number
+    u16_t   rec_len;        // Length of a current record
+    u16_t   file_type;      // Directory entry type
+    char    name[];         // Name
+};
+
+#define SFFS_DIRENTRY_LENGTH        8
+#define SFFS_DIRENTRY_MODE(MODE)    (((MODE) >> 12) & 0xF)
+
 /*      sffs.c      */
 
 /**
@@ -361,6 +380,13 @@ sffs_err_t sffs_alloc_inode_list(ino32_t size, struct sffs_inode_mem *ino_mem);
 */
 sffs_err_t sffs_get_data_block_info(blk32_t block_number, int flags, 
     struct sffs_data_block_info *db_info, struct sffs_inode_mem *ino_mem);
+
+/*      sffs_direntry.c     */
+
+/**
+ *  Initializes child directory with "." and ".." entries
+*/
+sffs_err_t sffs_creat_direntry(struct sffs_inode_mem *parent, struct sffs_inode_mem *child);
 
 /*      bitmaps.c       */
 
