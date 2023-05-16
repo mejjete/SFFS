@@ -187,8 +187,8 @@ sffs_err_t sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
     struct sffs_inode *inode = &((*ino_mem)->ino);
     
     // Inode's mode must have only 1 bit set
-    mode_t md = (mode & SFFS_IFMT) >> 12;    
-    if(!((md & (md - 1)) == 0 && md != 0))
+    mode_t md = (mode & SFFS_IFMT) >> 12;
+    if(md == 0)
         return SFFS_ERR_INVARG;
 
     inode->i_inode_num = ino_id;
