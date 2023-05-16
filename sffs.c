@@ -670,7 +670,7 @@ sffs_err_t sffs_alloc_data_blocks(size_t blk_count, struct sffs_inode_mem *ino_m
         else 
             free_spots = pr_inode_blks - last_ino_info.list_id;
         
-        if(free_spots == 0)
+        if(free_spots == 0 || inode->i_blks_count == 0)
             goto step_two;
 
         // Examine bitmap
