@@ -515,7 +515,7 @@ sffs_err_t sffs_get_data_block_info(blk32_t block_number, int flags,
         if(!db_info->content)
             return SFFS_ERR_MEMALLOC;
 
-        errc = sffs_read_blk(db_info->block_id, db_info->content, 1);
+        errc = sffs_read_data_blk(db_info->block_id, db_info->content, 1);
         if(errc < 0)
             return errc;
     }
