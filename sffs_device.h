@@ -30,7 +30,7 @@ int sffs_write_blk(blk32_t block, void *data, size_t size);
 /**
  *  Device read operation.
  *  Issues read to underlying device denoted by global 
- *  sffs_ctx.disk file descriptor 
+ *  sffs_ctx.disk file descriptor. Writes absolute block 
  *  
  *  block - block id from where to read
  *  size  - number o block how many to read
@@ -40,5 +40,17 @@ int sffs_write_blk(blk32_t block, void *data, size_t size);
  *  for data to be read
 */
 int sffs_read_blk(blk32_t block, void *data, size_t size);
+
+/**
+ *  The same as sffs_write_blk but writes relative blocks to a 
+ *  data blocks region
+*/
+int sffs_write_data_blk(blk32_t block, void *data, size_t blks);
+
+/**
+ *  The same as sffs_read_blk but reads relative blocks from a
+ *  data blocks region
+*/
+int sffs_read_data_blk(blk32_t block, void *data, size_t blks);
 
 #endif  // SFFS_DEVICE_H
