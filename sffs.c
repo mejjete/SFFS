@@ -453,7 +453,10 @@ sffs_err_t sffs_get_data_block_info(blk32_t block_number, int flags,
     if(flags != 0)
     {
         if((flags & SFFS_GET_BLK_LT) == SFFS_GET_BLK_LT)
-            block_id = ino_mem->ino.i_blks_count - 1;
+        {
+            if(ino_mem->ino.i_blks_count != 0)
+                block_id = ino_mem->ino.i_blks_count - 1;
+        }
         if((flags & SFFS_GET_BLK_RD) == SFFS_GET_BLK_RD)
             read_blk = true;
     }
@@ -475,7 +478,7 @@ sffs_err_t sffs_get_data_block_info(blk32_t block_number, int flags,
     if(block_number < pr_ino_blks)
     {
         blk_ptr = ino_mem->blks;
-        blk_off = block_number;
+        blk_off = block_id;
         blk_ino = ino_mem->ino.i_inode_num;
     }
     else 
