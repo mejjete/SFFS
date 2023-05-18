@@ -1,3 +1,8 @@
+/**
+ *  SPDX-License-Identifier: MIT
+ *  Copyright (c) 2023 Danylo Malapura
+*/
+
 #include "sffs.h"
 #include "sffs_device.h"
 #include <stdlib.h>
