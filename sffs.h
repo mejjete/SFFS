@@ -100,6 +100,8 @@
 #define SFFS_GET_BLK_RD             0000001     // Read block content
 #define SFFS_GET_BLK_LT             0000002     // Get last block of the inode
 
+#define SFFS_MAX_DIR_ENTRY          256         // The maximum size of the struct sffs_direntry
+
 typedef uint32_t blk32_t;       // Data block ID
 typedef uint32_t ino32_t;       // Inode ID
 typedef uint32_t bmap_t;        // Bitmap ID
@@ -123,7 +125,7 @@ typedef enum
      *  Basic error handler codes
     */
     SFFS_ERR_INVARG = -1,       // Invalid arguments passed to a handler
-    SFFS_ERR_INVBLK = -2,       // Invalid block size
+    SFFS_ERR_INVBLK = -2,       // Invalid block
     SFFS_ERR_INIT,              // Common error occured during mounting
     SFFS_ERR_MEMALLOC,          // Cannot allocate memory       
     SFFS_ERR_FS,                // File system structure is corrupted
@@ -136,6 +138,12 @@ typedef enum
     SFFS_ERR_DEV_READ,          // Device read operation error
     SFFS_ERR_DEV_SEEK,          // Device seek operation error
     SFFS_ERR_DEV_STAT,          // Device stat or statfs error
+
+    /**
+     *  Other error codes
+    */
+    SFFS_ERR_NOENT,             // No requested entry
+    SFFS_ERR_ENTEXIS,           // Requested entry exist
 }sffs_err_t;
 
 /**
@@ -386,7 +394,28 @@ sffs_err_t sffs_get_data_block_info(blk32_t block_number, int flags,
 /**
  *  Initializes child directory with "." and ".." entries
 */
-sffs_err_t sffs_creat_direntry(struct sffs_inode_mem *parent, struct sffs_inode_mem *child);
+sffs_err_t sffs_init_direntry(struct sffs_inode_mem *parent, struct sffs_inode_mem *child);
+
+/**
+ *  Creates new directory entry with specified arguments. Caller is responsible for 
+ *  deallocating direntry memory
+*/
+sffs_err_t sffs_new_direntry(struct sffs_inode *inode, const char *entry, 
+    struct sffs_direntry **dir);
+
+/**
+ *  Lookup operation on a direntry. The last two arguments are optional.
+ *  If *direntry != NULL, then lookup operation would fill it up. If
+ *  info != NULL, lookup will place the corresponding information about
+ *  direntry itself. For more information see lookup handler
+*/
+sffs_err_t sffs_lookup_direntry(struct sffs_inode_mem *parent, const char *path, 
+    struct sffs_direntry **direntry, struct sffs_data_block_info *info);
+
+/**
+ *  Appends new direntry to a directory. Allocates additional blocks if needed 
+*/
+sffs_err_t sffs_add_direntry(struct sffs_inode_mem *parent, struct sffs_direntry *direntry);
 
 /*      bitmaps.c       */
 
