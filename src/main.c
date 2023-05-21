@@ -3,10 +3,10 @@
  *  Copyright (c) 2023 Danylo Malapura
 */
 
-#include "sffs_fuse.h"
-#include "sffs_err.h"
-#include "sffs.h"
-#include "sffs_device.h"
+#include <sffs_fuse.h>
+#include <sffs_err.h>
+#include <sffs.h>
+#include <sffs_device.h>
 
 /** 
  *  Define only a limited set of basic operations and let 
@@ -104,7 +104,7 @@ int main(int argc, char **argv)
     if((cwd = malloc(4096)) == NULL)
         err_sys("sffs: Cannot allocate memory\n");
 
-    if(getcwd(cwd, 4096) < 0)
+    if(getcwd(cwd, 4096) != NULL)
         err_sys("sffs: Cannot get current working directory\n");
 
     // Initialize log file
@@ -152,24 +152,24 @@ int main(int argc, char **argv)
     return 0;
 }
 
-sffs_err_t sffs_alloc_test_1()
-{
-    sffs_err_t errc;
-    struct sffs_inode_mem *ino_mem;
+// sffs_err_t sffs_alloc_test_1()
+// {
+//     sffs_err_t errc;
+//     struct sffs_inode_mem *ino_mem;
 
-    errc = sffs_creat_inode(0, SFFS_IFREG, 0, &ino_mem);
-    if(errc < 0)
-        printf("ERROR\n");
+//     errc = sffs_creat_inode(0, SFFS_IFREG, 0, &ino_mem);
+//     if(errc < 0)
+//         printf("ERROR\n");
     
-    errc = sffs_read_inode(0, ino_mem);
-    if(errc < 0)
-        printf("ERROR\n");
+//     errc = sffs_read_inode(0, ino_mem);
+//     if(errc < 0)
+//         printf("ERROR\n");
     
-    errc = sffs_alloc_data(1, ino_mem);
-    if(errc < 0)
-        printf("ERROR\n");
-    return 0;
-}
+//     errc = sffs_alloc_data(1, ino_mem);
+//     if(errc < 0)
+//         printf("ERROR\n");
+//     return 0;
+// }
 
 sffs_err_t sffs_expose_bitmap(blk32_t bitmap, size_t size)
 {

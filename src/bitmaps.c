@@ -3,9 +3,9 @@
  *  Copyright (c) 2023 Danylo Malapura
 */
 
-#include "sffs.h"
-#include "sffs_context.h"
-#include "sffs_device.h"
+#include <sffs.h>
+#include <sffs_context.h>
+#include <sffs_device.h>
 
 static sffs_err_t __sffs_set_bm(blk32_t, bmap_t, u8_t);
 static sffs_err_t __sffs_check_bm(blk32_t, bmap_t);

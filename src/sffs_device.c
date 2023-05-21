@@ -3,7 +3,7 @@
  *  Copyright (c) 2023 Danylo Malapura
 */
 
-#include "sffs_device.h"
+#include <sffs_device.h>
 
 int sffs_write_blk(blk32_t block, void *data, size_t blks)
 {

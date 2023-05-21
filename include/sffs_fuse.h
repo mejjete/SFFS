@@ -29,7 +29,7 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
-#include "sffs_context.h"
+#include <sffs_context.h>
 
 // File system image file
 #define SFFS_IMAGE      ".__sffs_image"

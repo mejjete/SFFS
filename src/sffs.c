@@ -9,11 +9,11 @@
 
 #include <string.h>
 #include <sys/vfs.h>
-#include "sffs_context.h"
-#include "sffs.h"
-#include "sffs_err.h"
-#include "sffs_device.h"
-#include "time.h"
+#include <sffs_context.h>
+#include <sffs.h>
+#include <sffs_err.h>
+#include <sffs_device.h>
+#include <time.h>
 
 /**
  *  SFFS file system initialization code

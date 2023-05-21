@@ -3,10 +3,10 @@
  *  Copyright (c) 2023 Danylo Malapura
 */
 
-#include "sffs_fuse.h"
-#include "sffs_err.h"
-#include "sffs.h"
-#include "sffs_device.h"
+#include <sffs_fuse.h>
+#include <sffs_err.h>
+#include <sffs.h>
+#include <sffs_device.h>
 
 void *sffs_init(struct fuse_conn_info *conn)
 {   

@@ -6,7 +6,7 @@
 #ifndef SFFS_CONTEXT_H
 #define SFFS_CONTEXT_H
 
-#include "sffs.h"
+#include <sffs.h>
 
 struct sffs_options
 {
