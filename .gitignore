@@ -10,7 +10,7 @@ build/
 configure.scan
 autoscan.log
 *~
-Makefile
+*Makefile
 libtool
 *.dSYM
 *.a
