@@ -3,19 +3,20 @@ autom4te.cache/
 lib/
 build/
 .vscode/
-libtool/
 *.libs/
 *.deps/
 
 # Files
 *~
 Makefile
+libtool
 *.dSYM
 *.a
 *.swp
 *.lo
 *la
 *.o
+*Makefile
 .editorconfig
 config.status
 config.log
