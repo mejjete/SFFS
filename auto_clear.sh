@@ -1,1 +1,1 @@
-rm -rf aclocal.m4 autom4te.cache build build-aux config.h.in config.h.in\~ config.log libtool stamp-h1 m4/ config.status config.h Makefile Makefile.in 
+rm -rf autom4te.cache/ lib/ src/.deps src/.libs *~ config.log config.status libtool stamp-h1 *.lo *.la *.a *.o 

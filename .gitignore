@@ -1,0 +1,27 @@
+# Directories
+autom4te.cache/
+lib/
+build/
+.vscode/
+libtool/
+*.libs/
+*.deps/
+
+# Files
+*~
+Makefile
+*.dSYM
+*.a
+*.swp
+*.lo
+*la
+*.o
+.editorconfig
+config.status
+config.log
+stamp-h1
+
+# Executables
+auto_clear.sh
+sffs
+mkfs.sffs
