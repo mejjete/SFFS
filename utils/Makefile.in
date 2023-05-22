@@ -106,7 +106,7 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_mkfs_sffs_OBJECTS = sffs_mkfs.$(OBJEXT)
 mkfs_sffs_OBJECTS = $(am_mkfs_sffs_OBJECTS)
-mkfs_sffs_LDADD = $(LDADD)
+mkfs_sffs_DEPENDENCIES = ../src/libsffs.la
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
@@ -291,6 +291,10 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
+AM_CFLAGS = -I../include -g3 -DDEBUG -D_LARGEFILE64_SOURCE
+
+# Link the utility with the library
+mkfs_sffs_LDADD = ../src/libsffs.la
 mkfs_sffs_SOURCES = sffs_mkfs.c
 all: all-am
 

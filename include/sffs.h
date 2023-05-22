@@ -34,8 +34,8 @@
  *  SFFS file permission flags
 */
 #define	SFFS_IRUSR  04000	// Read by owner
-#define	SFFS_IWUSR	0200    // Write by owner
-#define	SFFS_IXUSR	0100	// Execute by owner
+#define	SFFS_IWUSR	02000   // Write by owner
+#define	SFFS_IXUSR	01000	// Execute by owner
 
 /**
  *  Mixed file permission flags
@@ -300,13 +300,6 @@ struct sffs_direntry
 #define SFFS_DIRENTRY_MODE(MODE)    (((MODE) >> 12) & 0xF)
 
 /*      sffs.c      */
-
-/**
- *  Do basic initialization stuff, called during mounting.
- * 
- *  If handler fails, the error code is returned
-*/
-sffs_err_t __sffs_init();
 
 /**
  *  The SFFS manages two superblocks. This allows for a file system 

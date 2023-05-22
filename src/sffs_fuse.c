@@ -34,8 +34,6 @@ void *sffs_init(struct fuse_conn_info *conn)
         if(ftruncate(fd, 52428800) < 0)
             err_sys("Cannot create sffs image with specified size");
         
-        __sffs_init();
-
         ino32_t root;
         mode_t mode = SFFS_IFDIR | SFFS_IRWXU | SFFS_IRGRP | SFFS_IROTH;
 
