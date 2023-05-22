@@ -1,0 +1,7 @@
+build-aux/ linguist-detectable=false 
+*.ac linguist-detectable=false
+*.m4 linguist-detectable=false
+*.sh linguist-detectable=false
+*.in linguist-detectable=true
+*.am linguist-detectable=true
+*.c linguist-detectable=true
