@@ -30,7 +30,6 @@ void *sffs_init(struct fuse_conn_info *conn)
         abort();
     
     sffs_context->cache = cache;
-    sffs_context->block_size = sffs_context->sb.s_block_size;
     return sffs_context;
 }
 

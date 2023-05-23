@@ -271,7 +271,6 @@ typedef struct sffs_context
 {
     int disk_id;                // Image file descriptor
     int log_id;                 // Log file descriptor
-    blk32_t block_size;         // Block size for quick access 
     struct sffs_superblock sb;  // Super block instance
     void *cache;                // Private data
 } sffs_context_t;
