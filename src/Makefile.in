@@ -696,6 +696,13 @@ uninstall-am: uninstall-includeHEADERS uninstall-libLTLIBRARIES
 .PRECIOUS: Makefile
 
 
+# Add the custom rule to run sudo ldconfig
+# postinstall-exec:
+    # sudo ldconfig
+
+# Define the dependencies for the custom rule
+# postinstall: postinstall-exec
+
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

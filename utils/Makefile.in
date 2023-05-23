@@ -107,7 +107,7 @@ am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_mkfs_sffs_OBJECTS = sffs_mkfs.$(OBJEXT)
 mkfs_sffs_OBJECTS = $(am_mkfs_sffs_OBJECTS)
-mkfs_sffs_DEPENDENCIES = ../src/libsffs.la
+mkfs_sffs_DEPENDENCIES =
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
@@ -325,7 +325,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AM_CFLAGS = -I../include -I/usr/include/fuse -DDEBUG -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
-mkfs_sffs_LDADD = ../src/libsffs.la
+mkfs_sffs_LDADD = -L../src -lsffs
 mkfs_sffs_SOURCES = sffs_mkfs.c
 
 # mount.sffs utulity

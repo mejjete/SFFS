@@ -242,13 +242,17 @@ int main(int argc, char **argv)
 
     int fd;
     if((fd = open(device_argv, flags, fmode)) < 0)
-        fprintf(stderr, "mkfs.sffs: Cannot creat SFFS image: %s", device_argv);
+    {
+        fprintf(stderr, "mkfs.sffs: Cannot creat SFFS image: %s\n", device_argv);
+        exit(EXIT_FAILURE);
+    }
 
     if(ftruncate(fd, fs_size) < 0)
     {
-        fprintf(stderr, "mkfs.sffs: Cannot creat %s image with specified size: %d", 
+        fprintf(stderr, "mkfs.sffs: Cannot creat %s image with specified size: %d\n", 
             device_argv, fs_size);
         remove(device_argv);
+        exit(EXIT_FAILURE);
     }
 
     /*          SFFS arguments correction           */

@@ -2,7 +2,7 @@ AM_CFLAGS = -I../include -I/usr/include/fuse -DDEBUG -D_LARGEFILE64_SOURCE -D_FI
 
 # mkfs.sffs utility 
 bin_PROGRAMS = mkfs.sffs mount.sffs
-mkfs_sffs_LDADD = ../src/libsffs.la
+mkfs_sffs_LDADD = -L../src -lsffs
 mkfs_sffs_SOURCES = sffs_mkfs.c
 
 # mount.sffs utulity
