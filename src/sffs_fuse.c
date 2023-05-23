@@ -7,59 +7,36 @@
 #include <sffs_err.h>
 #include <sffs.h>
 #include <sffs_device.h>
+#include <sffs_context.h>
 
 void *sffs_init(struct fuse_conn_info *conn)
 {   
-    printf("SFFS_INIT\n");
+    /**
+     *  SFFS image is created my mkfs.sffs. This handler only 
+     *  responsible for memory allocation and both superblock 
+     *  and file system context initialization
+    */
+    sffs_err_t errc = sffs_read_sb(0, &sffs_ctx.sb);
+    if(errc < 0)
+        abort();
 
-    // Initialize image file
-    int flags = O_RDWR;
-    mode_t fmode = 0;
-    struct stat statbuf; 
+    struct sffs_context *sffs_context = (struct sffs_context *)
+        malloc(sizeof(struct sffs_context));
+    if(!sffs_context)
+        abort();
 
-    if(stat(SFFS_IMAGE, &statbuf) == -1)
-    {
-        flags |= O_CREAT | O_TRUNC;
-        fmode = S_IRWXU | S_IRWXG | S_IRWXO;
-    }
-
-    int fd;
-    if((fd = open(SFFS_IMAGE, flags, fmode)) < 0)
-        err_sys("Cannot initialize sffs image");
-
-    sffs_ctx.disk_id = fd;
-
-    if((flags & O_CREAT) == O_CREAT)
-    {
-        if(ftruncate(fd, 52428800) < 0)
-            err_sys("Cannot create sffs image with specified size");
-        
-        ino32_t root;
-        mode_t mode = SFFS_IFDIR | SFFS_IRWXU | SFFS_IRGRP | SFFS_IROTH;
-
-        struct sffs_inode_mem *ino_mem;
-        sffs_alloc_inode(&root, mode);
-        sffs_creat_inode(root, mode, 0, &ino_mem);
-        sffs_write_inode(ino_mem);
-        return conn;
-    }
-
-    // Superblock initialization
-    sffs_read_sb(0, &sffs_ctx.sb);
-
-    if((sffs_ctx.cache = malloc(sffs_ctx.sb.s_block_size)) == NULL)
-        err_sys("sffs: Cannot allocate memory\n");
-
-    sffs_ctx.block_size = sffs_ctx.sb.s_block_size;
-
-    // do not know what to return so return fuse's connector
-    return conn;
+    // Allocate at least block_size cache for local use
+    void *cache = malloc(sffs_context->sb.s_block_size);
+    if(!cache)
+        abort();
+    
+    sffs_context->cache = cache;
+    sffs_context->block_size = sffs_context->sb.s_block_size;
+    return sffs_context;
 }
 
 void sffs_destroy(void *data)
 {
-    printf("SFFS_DESTROY\n");
-
     if(sffs_write_sb(0, &sffs_ctx.sb) < 0)
         ; // do high level error handling
 
@@ -70,6 +47,7 @@ void sffs_destroy(void *data)
 int sffs_statfs(const char *path, struct statvfs *statfs)
 {
     struct sffs_superblock *sb = &sffs_ctx.sb;
+    struct fuse_context *ctx = fuse_get_context();
 
     statfs->f_bsize = sb->s_block_size;
     statfs->f_blocks = sb->s_blocks_count;
