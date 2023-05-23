@@ -5,5 +5,5 @@ if [ $# -eq 0 ]; then
     echo "umount.sffs: No mount point is provided"
 else
     # Access the first parameter using $1 and echo it
-    fusermount -s $1
+    fusermount -u $1
 fi
