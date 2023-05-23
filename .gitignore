@@ -22,6 +22,7 @@ libtool
 config.status
 config.log
 stamp-h1
+remake.sh
 
 # Executables
 auto_clear.sh

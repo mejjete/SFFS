@@ -85,6 +85,7 @@ sffs_err_t __sffs_init(sffs_context_t *sffs_ctx, size_t fs_size)
     sffs_sb.s_group_count = total_inodes;
     sffs_sb.s_free_groups = total_inodes;
     sffs_sb.s_inodes_count = total_inodes;
+    sffs_sb.s_inodes_reserved = resv_inodes;
     sffs_sb.s_free_inodes_count = total_inodes;
     sffs_sb.s_max_mount_count = SFFS_MAX_MOUNT;
     sffs_sb.s_max_inode_list = SFFS_MAX_INODE_LIST;
@@ -119,22 +120,21 @@ sffs_err_t __sffs_init(sffs_context_t *sffs_ctx, size_t fs_size)
     sffs_sb.s_GIT_size = GIT_size_blks;
     acc_address += GIT_size_blks;
 
+    sffs_ctx->sb = sffs_sb;
+
     /**
      *  SFFS superblock serialization
     */
     if(lseek64(sffs_ctx->disk_id, 1024, SEEK_SET) < 0)
         return SFFS_ERR_DEV_SEEK;
     
-    if(write(sffs_ctx->disk_id, &sffs_sb, SFFS_SB_SIZE) == 0)
+    if(write(sffs_ctx->disk_id, &sffs_ctx->sb, SFFS_SB_SIZE) == 0)
         return SFFS_ERR_DEV_WRITE;
     
     return 0;
 }
 
-/// @brief 
-/// @param argc 
-/// @param argv 
-/// @return 
+
 int main(int argc, char **argv)
 {
     if(argc < 2)
@@ -189,7 +189,7 @@ int main(int argc, char **argv)
 
     if(access(device_argv, F_OK) == 0)
     {
-        fprintf(stdout, "mkfs.sffs: The file [%s] already exist. Do you want to rewrite it? (y/n): ", device_argv);
+        fprintf(stdout, "mkfs.sffs: Image [%s] already exist. Do you want to rewrite it? (y/n): ", device_argv);
         char answer;
         do 
         {
@@ -295,6 +295,12 @@ int main(int argc, char **argv)
 
     sffs_context_t sffs_ctx;
     sffs_ctx.sb.s_block_size = block_size;
+    sffs_ctx.disk_id = fd;
+    void *cache = malloc(sffs_ctx.sb.s_block_size);
+    if(!cache)
+        abort();
+    sffs_ctx.cache = cache;
+
     sffs_err_t errc = __sffs_init(&sffs_ctx, fs_size);
     if(errc < 0)
     {
@@ -302,11 +308,34 @@ int main(int argc, char **argv)
         abort();
     }
 
+    ino32_t inode;
+    struct sffs_inode_mem *ino_mem;
+    errc = sffs_alloc_inode(&sffs_ctx, &inode, SFFS_IFDIR);
+    if(errc < 0)
+        abort();
+    
+    errc = sffs_creat_inode(&sffs_ctx, inode, SFFS_IFDIR, 0, &ino_mem);
+    if(errc < 0)
+        abort();
+    
+    errc = sffs_write_inode(&sffs_ctx, ino_mem);
+    if(errc < 0)
+        abort();
+    
+    errc = sffs_init_direntry(&sffs_ctx, NULL, ino_mem);
+    if(errc < 0)
+        abort();
+
     printf("File system successfully created\n");
     printf("SFFS_PATH: %s\n", device_argv);
     printf("SFFS_SIZE: %d\n", fs_size);
     printf("SFFS_BLOCK_SIZE: %d\n", sffs_ctx.sb.s_block_size);
     printf("SFFS_BLOCKS_COUNT: %d\n", sffs_ctx.sb.s_blocks_count);
     printf("SFFS_INODES_COUNT: %d\n", sffs_ctx.sb.s_inodes_count);
+    printf("SFFS_ROOT: %d\n", ino_mem->ino.i_inode_num);
+
+    close(fd);
+    free(ino_mem);
+    free(sffs_ctx.cache);
     exit(EXIT_SUCCESS);
 }

@@ -1,4 +1,4 @@
-AM_CFLAGS = -I../include -I/usr/include/fuse -g3 -DDEBUG -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
+AM_CFLAGS = -I../include -I/usr/include/fuse -DDEBUG -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64
 
 # mkfs.sffs utility 
 bin_PROGRAMS = mkfs.sffs mount.sffs
