@@ -5,36 +5,35 @@
 
 #include <stdio.h>
 #include <sffs_err.h>
-#include <sffs_context.h>
 
-void err_sys(const char *fmt, ...)
+void err_sys(sffs_context_t *sffs_ctx, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    vdprintf(sffs_ctx.log_id, fmt, ap);
+    vdprintf(sffs_ctx->log_id, fmt, ap);
     va_end(ap);
-    fsync(sffs_ctx.log_id);
+    fsync(sffs_ctx->log_id);
     exit(EXIT_FAILURE);
 }
 
-void err_dump(const char *fmt, ...)
+void err_dump(sffs_context_t *sffs_ctx, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    vdprintf(sffs_ctx.log_id, fmt, ap);
+    vdprintf(sffs_ctx->log_id, fmt, ap);
     va_end(ap);
-    fsync(sffs_ctx.log_id);
+    fsync(sffs_ctx->log_id);
     abort();
     exit(EXIT_FAILURE);     /* shouldn't get here */
 }
 
-void err_msg(const char *fmt, ...)
+void err_msg(sffs_context_t *sffs_ctx, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    vdprintf(sffs_ctx.log_id, fmt, ap);
+    vdprintf(sffs_ctx->log_id, fmt, ap);
     va_end(ap);
-    fsync(sffs_ctx.log_id);
+    fsync(sffs_ctx->log_id);
 }
 
 void err_no_log()

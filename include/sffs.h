@@ -6,9 +6,9 @@
 #ifndef SFFS_H
 #define SFFS_H
 
+#include <stdint.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <stdint.h>
 #include <stdbool.h>
 
 /**
@@ -17,7 +17,7 @@
 */
 #define SFFS_INODE_RATIO    131072
 
-#define SFFS_MAX_MOUNT  16
+#define SFFS_MAX_MOUNT      16
 
 #ifndef SFFS_MAX_INODE_LIST
 /**
@@ -266,6 +266,16 @@ struct __attribute__ ((__packed__)) sffs_superblock
 
 #define SFFS_SB_SIZE        sizeof(struct sffs_superblock)
 
+
+typedef struct sffs_context
+{
+    int disk_id;                // Image file descriptor
+    int log_id;                 // Log file descriptor
+    blk32_t block_size;         // Block size for quick access 
+    struct sffs_superblock sb;  // Super block instance
+    void *cache;                // Private data
+} sffs_context_t;
+
 /**
  *  Holds basic information about data block and the block content.
 */
@@ -299,6 +309,14 @@ struct sffs_direntry
 #define SFFS_DIRENTRY_LENGTH        8
 #define SFFS_DIRENTRY_MODE(MODE)    (((MODE) >> 12) & 0xF)
 
+struct sffs_options
+{
+    const char *fs_image;
+    const char *log_file;
+};
+
+#define SFFS_OPT_INIT(t, p) { t, offsetof(struct sffs_options, p), 1 }
+
 /*      sffs.c      */
 
 /**
@@ -310,13 +328,13 @@ struct sffs_direntry
  * 
  *  If handler fails, the error code is returned
 */
-sffs_err_t sffs_read_sb(u8_t sb_id, struct sffs_superblock *sb);
+sffs_err_t sffs_read_sb(sffs_context_t *sffs_ctx, struct sffs_superblock *sb);
 
 /**
  *  Writes superblock pointed by sb to a specified location.
  *  The reason for sb_id look sffs_read_sb.
 */
-sffs_err_t sffs_write_sb(u8_t sb_id, struct sffs_superblock *sb);
+sffs_err_t sffs_write_sb(sffs_context_t *sffs_ctx, struct sffs_superblock *sb);
 
 /**
  *  Creates and initializes new inode instance in inode.
@@ -325,7 +343,7 @@ sffs_err_t sffs_write_sb(u8_t sb_id, struct sffs_superblock *sb);
  * 
  *  If handler fails, the error code is returned
 */
-sffs_err_t sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
+sffs_err_t sffs_creat_inode(sffs_context_t *sffs_ctx, ino32_t ino_id, mode_t mode, int flags,
     struct sffs_inode_mem **ino_mem);
 
 /**
@@ -333,7 +351,7 @@ sffs_err_t sffs_creat_inode(ino32_t ino_id, mode_t mode, int flags,
  * 
  *  If handler fails, the error code is returned
 */
-sffs_err_t sffs_write_inode(struct sffs_inode_mem *inode); 
+sffs_err_t sffs_write_inode(sffs_context_t *sffs_ctx, struct sffs_inode_mem *inode); 
 
 /**
  *  Reads inode by a given inode identificator (ino_id) and puts
@@ -342,7 +360,7 @@ sffs_err_t sffs_write_inode(struct sffs_inode_mem *inode);
  * 
  *  If handler fails, the error code is returned
 */
-sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode_mem *inode);
+sffs_err_t sffs_read_inode(sffs_context_t *sffs_ctx, ino32_t ino_id, struct sffs_inode_mem *inode);
 
 /**
  *  Extremely stupid implementation of inode allocation algorithm.
@@ -353,7 +371,7 @@ sffs_err_t sffs_read_inode(ino32_t ino_id, struct sffs_inode_mem *inode);
  * 
  *  If handler fails, the error code is returned
 */
-sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode);
+sffs_err_t sffs_alloc_inode(sffs_context_t *sffs_ctx, ino32_t *ino_id, mode_t mode);
 
 /**
  *  Allocates blk_count data blocks for inode. Appends newly 
@@ -361,7 +379,8 @@ sffs_err_t sffs_alloc_inode(ino32_t *ino_id, mode_t mode);
  * 
  *  If hander fails, the error code is returned
 */
-sffs_err_t sffs_alloc_data_blocks(size_t blk_count, struct sffs_inode_mem *inode);
+sffs_err_t sffs_alloc_data_blocks(sffs_context_t *sffs_ctx, size_t blk_count, 
+    struct sffs_inode_mem *inode);
 
 /**
  *  Allocates size additional inode list entries. Inode list entries will
@@ -369,7 +388,8 @@ sffs_err_t sffs_alloc_data_blocks(size_t blk_count, struct sffs_inode_mem *inode
  * 
  *  If handler fails, the error code is returned
 */
-sffs_err_t sffs_alloc_inode_list(ino32_t size, struct sffs_inode_mem *ino_mem);
+sffs_err_t sffs_alloc_inode_list(sffs_context_t *sffs_ctx, ino32_t size, 
+    struct sffs_inode_mem *ino_mem);
 
 /**
  *  Reads the data block information from inode and block itself 
@@ -379,21 +399,22 @@ sffs_err_t sffs_alloc_inode_list(ino32_t size, struct sffs_inode_mem *ino_mem);
  * 
  *  If handler fails, the error code is returned
 */
-sffs_err_t sffs_get_data_block_info(blk32_t block_number, int flags, 
-    struct sffs_data_block_info *db_info, struct sffs_inode_mem *ino_mem);
+sffs_err_t sffs_get_data_block_info(sffs_context_t *sffs_ctx, blk32_t block_number, 
+    int flags, struct sffs_data_block_info *db_info, struct sffs_inode_mem *ino_mem);
 
 /*      sffs_direntry.c     */
 
 /**
  *  Initializes child directory with "." and ".." entries
 */
-sffs_err_t sffs_init_direntry(struct sffs_inode_mem *parent, struct sffs_inode_mem *child);
+sffs_err_t sffs_init_direntry(sffs_context_t *sffs_ctx, struct sffs_inode_mem *parent,
+    struct sffs_inode_mem *child);
 
 /**
  *  Creates new directory entry with specified arguments. Caller is responsible for 
  *  deallocating direntry memory
 */
-sffs_err_t sffs_new_direntry(struct sffs_inode *inode, const char *entry, 
+sffs_err_t sffs_new_direntry(sffs_context_t *sffs_ctx, struct sffs_inode *inode, const char *entry, 
     struct sffs_direntry **dir);
 
 /**
@@ -402,13 +423,15 @@ sffs_err_t sffs_new_direntry(struct sffs_inode *inode, const char *entry,
  *  info != NULL, lookup will place the corresponding information about
  *  direntry itself. For more information see lookup handler
 */
-sffs_err_t sffs_lookup_direntry(struct sffs_inode_mem *parent, const char *path, 
-    struct sffs_direntry **direntry, struct sffs_data_block_info *info);
+sffs_err_t sffs_lookup_direntry(sffs_context_t *sffs_ctx, 
+    struct sffs_inode_mem *parent, const char *path, struct sffs_direntry **direntry, 
+    struct sffs_data_block_info *info);
 
 /**
  *  Appends new direntry to a directory. Allocates additional blocks if needed 
 */
-sffs_err_t sffs_add_direntry(struct sffs_inode_mem *parent, struct sffs_direntry *direntry);
+sffs_err_t sffs_add_direntry(sffs_context_t *sffs_ctx, struct sffs_inode_mem *parent, 
+    struct sffs_direntry *direntry);
 
 /*      bitmaps.c       */
 
@@ -416,18 +439,18 @@ sffs_err_t sffs_add_direntry(struct sffs_inode_mem *parent, struct sffs_direntry
  *  Bitmap handlers for Data Blocks.
  *  If bitmap handlers fails, the error code is returned
 */
-sffs_err_t sffs_set_data_bm(bmap_t);
-sffs_err_t sffs_unset_data_bm(bmap_t);
-sffs_err_t sffs_check_data_bm(bmap_t);
+sffs_err_t sffs_set_data_bm(sffs_context_t *sffs_ctx, bmap_t);
+sffs_err_t sffs_unset_data_bm(sffs_context_t *sffs_ctx, bmap_t);
+sffs_err_t sffs_check_data_bm(sffs_context_t *sffs_ctx, bmap_t);
 sffs_err_t __set_bm(blk32_t *, bmap_t, u8_t);
 
 /**
  *  Bitmap handlers for Global Inode Table.
  *  If bitmap handlers fails, the error code is returned
 */
-sffs_err_t sffs_set_GIT_bm(bmap_t);
-sffs_err_t sffs_unset_GIT_bm(bmap_t);
-sffs_err_t sffs_check_GIT_bm(bmap_t);
+sffs_err_t sffs_set_GIT_bm(sffs_context_t *sffs_ctx, bmap_t);
+sffs_err_t sffs_unset_GIT_bm(sffs_context_t *sffs_ctx, bmap_t);
+sffs_err_t sffs_check_GIT_bm(sffs_context_t *sffs_ctx, bmap_t);
 sffs_err_t __check_bm(blk32_t *, bmap_t);
 
 #endif  // SFFS_H

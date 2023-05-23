@@ -12,14 +12,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sffs.h>
 
 #define MAXLINE 4096
 
-void err_sys(const char *fmt, ...);
+void err_sys(sffs_context_t *sffs_ctx, const char *fmt, ...);
 
-void err_dump(const char *fmt, ...);
+void err_dump(sffs_context_t *sffs_ctx, const char *fmt, ...);
 
-void err_msg(const char *fmt, ...);
+void err_msg(sffs_context_t *sffs_ctx, const char *fmt, ...);
 
 void err_no_log();
 

@@ -29,10 +29,6 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <sffs_context.h>
-
-// File system image file
-#define SFFS_IMAGE      ".__sffs_image"
 
 /**
  *  DEBUG macro allows for a file system silently define all

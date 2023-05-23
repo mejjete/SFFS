@@ -7,7 +7,6 @@
 #include <sffs_err.h>
 #include <sffs.h>
 #include <sffs_device.h>
-#include <sffs_context.h>
 
 void *sffs_init(struct fuse_conn_info *conn)
 {   
@@ -16,13 +15,13 @@ void *sffs_init(struct fuse_conn_info *conn)
      *  responsible for memory allocation and both superblock 
      *  and file system context initialization
     */
-    sffs_err_t errc = sffs_read_sb(0, &sffs_ctx.sb);
-    if(errc < 0)
+    struct sffs_context *sffs_context = (struct sffs_context *)
+            malloc(sizeof(struct sffs_context));
+    if(!sffs_context)
         abort();
 
-    struct sffs_context *sffs_context = (struct sffs_context *)
-        malloc(sizeof(struct sffs_context));
-    if(!sffs_context)
+    sffs_err_t errc = sffs_read_sb(sffs_context, &sffs_context->sb);
+    if(errc < 0)
         abort();
 
     // Allocate at least block_size cache for local use
@@ -37,17 +36,18 @@ void *sffs_init(struct fuse_conn_info *conn)
 
 void sffs_destroy(void *data)
 {
-    if(sffs_write_sb(0, &sffs_ctx.sb) < 0)
+    sffs_context_t *ctx = (sffs_context_t *) fuse_get_context();
+    if(sffs_write_sb(ctx, &ctx->sb) < 0)
         ; // do high level error handling
 
-    close(sffs_ctx.disk_id);
-    close(sffs_ctx.log_id);
+    close(ctx->disk_id);
+    close(ctx->log_id);
 }
 
 int sffs_statfs(const char *path, struct statvfs *statfs)
 {
-    struct sffs_superblock *sb = &sffs_ctx.sb;
-    struct fuse_context *ctx = fuse_get_context();
+    sffs_context_t *ctx = (sffs_context_t *) fuse_get_context();
+    struct sffs_superblock *sb = &ctx->sb;
 
     statfs->f_bsize = sb->s_block_size;
     statfs->f_blocks = sb->s_blocks_count;
@@ -95,27 +95,6 @@ int sffs_mkdir(const char *path, mode_t mode)
 int sffs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
 			struct fuse_file_info *fi)
 {
-    filler(buf, ".", NULL, 0);
-    filler(buf, "..", NULL, 0);
-
-    static struct stat statbuf;
-    statbuf.st_ino = 12345;
-
-    if(strcmp(path, "/") == 0)
-	{
-		filler(buf, "file54", &statbuf, 0);
-		// filler(buf, "file349", NULL, 0);
-
-        struct sffs_inode_mem *ino_mem;
-        sffs_creat_inode(0, 0, 0, &ino_mem);
-        sffs_read_inode(0, ino_mem);
-        statbuf.st_ino = ino_mem->ino.i_inode_num;
-        statbuf.st_blocks = ino_mem->ino.i_blks_count;
-        statbuf.st_blksize = 12345;
-        filler(buf, "root", &statbuf, 0);
-        free(ino_mem);
-	}
-
     return 0;
 }
 

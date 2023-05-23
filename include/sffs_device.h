@@ -7,10 +7,10 @@
 #define SFFS_DEVICE_H
 
 #include <unistd.h>
-#include "sffs_context.h"
+#include <sffs.h>
 
 /**
- *  device.c
+ *  sffs_device.c
 */
 
 /**
@@ -25,7 +25,8 @@
  *  Caller is responsible for allocating enough space
  *  for data to be written 
 */
-int sffs_write_blk(blk32_t block, void *data, size_t size);
+int sffs_write_blk(sffs_context_t *sffs_ctx, blk32_t block, 
+    void *data, size_t size);
 
 /**
  *  Device read operation.
@@ -39,18 +40,21 @@ int sffs_write_blk(blk32_t block, void *data, size_t size);
  *  Caller is responsible for allocating enough space 
  *  for data to be read
 */
-int sffs_read_blk(blk32_t block, void *data, size_t size);
+int sffs_read_blk(sffs_context_t *sffs_ctx, blk32_t block, 
+    void *data, size_t size);
 
 /**
  *  The same as sffs_write_blk but writes relative blocks to a 
  *  data blocks region
 */
-int sffs_write_data_blk(blk32_t block, void *data, size_t blks);
+int sffs_write_data_blk(sffs_context_t *sffs_ctx, blk32_t block, 
+    void *data, size_t blks);
 
 /**
  *  The same as sffs_read_blk but reads relative blocks from a
  *  data blocks region
 */
-int sffs_read_data_blk(blk32_t block, void *data, size_t blks);
+int sffs_read_data_blk(sffs_context_t *sffs_ctx, blk32_t block, 
+    void *data, size_t blks);
 
 #endif  // SFFS_DEVICE_H

@@ -4,9 +4,6 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
-/* Define to 1 if you have the <include/sffs_context.h> header file. */
-/* #undef HAVE_INCLUDE_SFFS_CONTEXT_H */
-
 /* Define to 1 if you have the <include/sffs_direntry.h> header file. */
 /* #undef HAVE_INCLUDE_SFFS_DIRENTRY_H */
 

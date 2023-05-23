@@ -1,5 +1,4 @@
 #include <sffs.h>
-#include <sffs_context.h>
 #include <sffs_err.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -28,11 +27,11 @@ struct sffs_mount_opts
 /**
  *  SFFS file system initialization code
 */
-sffs_err_t __sffs_init(size_t fs_size)
+sffs_err_t __sffs_init(sffs_context_t *sffs_ctx, size_t fs_size)
 {
     struct sffs_superblock sffs_sb;
     memset(&sffs_sb, 0, sizeof(struct sffs_superblock));
-    blk32_t block_size = sffs_ctx.sb.s_block_size;
+    blk32_t block_size = sffs_ctx->sb.s_block_size;
 
     /**
      *  The location of the superblock is at a fixed address
@@ -119,23 +118,23 @@ sffs_err_t __sffs_init(size_t fs_size)
     sffs_sb.s_GIT_start = acc_address;
     sffs_sb.s_GIT_size = GIT_size_blks;
     acc_address += GIT_size_blks;
-    
-    // In-memory superblock copy initialization
-    sffs_ctx.sb = sffs_sb;
 
     /**
      *  SFFS superblock serialization
     */
-    if(lseek64(sffs_ctx.disk_id, 1024, SEEK_SET) < 0)
+    if(lseek64(sffs_ctx->disk_id, 1024, SEEK_SET) < 0)
         return SFFS_ERR_DEV_SEEK;
     
-    if(write(sffs_ctx.disk_id, &sffs_sb, SFFS_SB_SIZE) == 0)
+    if(write(sffs_ctx->disk_id, &sffs_sb, SFFS_SB_SIZE) == 0)
         return SFFS_ERR_DEV_WRITE;
     
-    sffs_ctx.block_size = block_size;
     return 0;
 }
 
+/// @brief 
+/// @param argc 
+/// @param argv 
+/// @return 
 int main(int argc, char **argv)
 {
     if(argc < 2)
@@ -245,14 +244,12 @@ int main(int argc, char **argv)
     if((fd = open(device_argv, flags, fmode)) < 0)
         fprintf(stderr, "mkfs.sffs: Cannot creat SFFS image: %s", device_argv);
 
-    sffs_ctx.disk_id = fd;
     if(ftruncate(fd, fs_size) < 0)
     {
         fprintf(stderr, "mkfs.sffs: Cannot creat %s image with specified size: %d", 
             device_argv, fs_size);
         remove(device_argv);
     }
-
 
     /*          SFFS arguments correction           */
 
@@ -296,11 +293,9 @@ int main(int argc, char **argv)
             1024 < %d < 4096\n", block_size);
     }
 
-    if((sffs_ctx.cache = malloc(4096)) == 0)
-        return SFFS_ERR_MEMALLOC;
-    memset(sffs_ctx.cache, 0, block_size);
+    sffs_context_t sffs_ctx;
     sffs_ctx.sb.s_block_size = block_size;
-    sffs_err_t errc = __sffs_init(fs_size);
+    sffs_err_t errc = __sffs_init(&sffs_ctx, fs_size);
     if(errc < 0)
     {
         fprintf(stderr, "mkfs.sffs: Error during SFFS image initialization\n");

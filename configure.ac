@@ -15,7 +15,7 @@ AC_PROG_CC
 
 # Checks for header files.
 AC_CHECK_HEADERS([include/sffs.h include/sffs_fuse.h include/sffs_direntry.h 
-    include/sffs_err.h include/sffs_context.h])
+    include/sffs_err.h])
 
 # Directory for weird auto-generated scripts
 AC_CONFIG_AUX_DIR([build-aux])

@@ -5,4 +5,4 @@ AM_CFLAGS = -I../include -fPIC -g3 -DDEBUG -D_LARGEFILE64_SOURCE $(FUSE_C_FLAGS)
 
 lib_LTLIBRARIES = libsffs.la
 libsffs_la_SOURCES = sffs.c sffs_fuse.c sffs_device.c sffs_direntry.c err.c bitmaps.c
-include_HEADERS = ../include/sffs.h ../include/sffs_fuse.h ../include/sffs_device.h ../include/sffs_context.h  ../include/sffs_err.h
+include_HEADERS = ../include/sffs.h ../include/sffs_fuse.h ../include/sffs_device.h ../include/sffs_err.h

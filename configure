@@ -3744,12 +3744,6 @@ then :
   printf "%s\n" "#define HAVE_INCLUDE_SFFS_ERR_H 1" >>confdefs.h
 
 fi
-ac_fn_c_check_header_compile "$LINENO" "include/sffs_context.h" "ac_cv_header_include_sffs_context_h" "$ac_includes_default"
-if test "x$ac_cv_header_include_sffs_context_h" = xyes
-then :
-  printf "%s\n" "#define HAVE_INCLUDE_SFFS_CONTEXT_H 1" >>confdefs.h
-
-fi
 
 
 # Directory for weird auto-generated scripts

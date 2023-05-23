@@ -75,6 +75,8 @@ static const struct fuse_opt sffs_option_spec[] =
     FUSE_OPT_END
 };
 
+sffs_context_t sffs_ctx;
+
 int main(int argc, char **argv)
 {
     struct fuse_args sffs_args = FUSE_ARGS_INIT(argc, argv);
