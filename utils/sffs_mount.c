@@ -75,24 +75,18 @@ static const struct fuse_opt sffs_option_spec[] =
     FUSE_OPT_END
 };
 
-sffs_context_t sffs_ctx;
+struct sffs_options __gl_sffs_opts;
 
 int main(int argc, char **argv)
 {
     struct fuse_args sffs_args = FUSE_ARGS_INIT(argc, argv);
-    struct sffs_options options;
-    memset(&options, 0, sizeof(options));
+    memset(&__gl_sffs_opts, 0, sizeof(__gl_sffs_opts));
 
-    if(fuse_opt_parse(&sffs_args, &options, sffs_option_spec, NULL) == -1)
+    if(fuse_opt_parse(&sffs_args, &__gl_sffs_opts, sffs_option_spec, NULL) == -1)
     {
         fprintf(stderr, "mount.sffs: Cannot parse cmd arguments\n");
         exit(EXIT_FAILURE);
     }
-    
-    int fd = open(options.fs_image, O_RDWR);
-    if(fd < 0)
-        abort();
-    sffs_ctx.disk_id = fd;
 
     fuse_main(sffs_args.argc, sffs_args.argv, &sffs_ops, NULL); 
     exit(EXIT_SUCCESS);

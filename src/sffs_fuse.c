@@ -8,6 +8,8 @@
 #include <sffs.h>
 #include <sffs_device.h>
 
+extern struct sffs_options __gl_sffs_opts;
+
 void *sffs_init(struct fuse_conn_info *conn)
 {   
     /**
@@ -19,6 +21,12 @@ void *sffs_init(struct fuse_conn_info *conn)
             malloc(sizeof(struct sffs_context));
     if(!sffs_context)
         abort();
+    
+    // Obtain pre-init parameter via global variable
+    int fd = open(__gl_sffs_opts.fs_image, O_RDWR);
+    if(fd < 0)
+        abort();
+    sffs_context->disk_id = fd;
 
     sffs_err_t errc = sffs_read_sb(sffs_context, &sffs_context->sb);
     if(errc < 0)
@@ -35,7 +43,9 @@ void *sffs_init(struct fuse_conn_info *conn)
 
 void sffs_destroy(void *data)
 {
-    sffs_context_t *ctx = (sffs_context_t *) fuse_get_context();
+    struct fuse_context *fctx = fuse_get_context();
+    sffs_context_t *ctx = (sffs_context_t *) fctx->private_data;
+
     if(sffs_write_sb(ctx, &ctx->sb) < 0)
         ; // do high level error handling
 
@@ -45,7 +55,8 @@ void sffs_destroy(void *data)
 
 int sffs_statfs(const char *path, struct statvfs *statfs)
 {
-    sffs_context_t *ctx = (sffs_context_t *) fuse_get_context();
+    struct fuse_context *fctx = fuse_get_context();
+    sffs_context_t *ctx = (sffs_context_t *) fctx->private_data;
     struct sffs_superblock *sb = &ctx->sb;
 
     statfs->f_bsize = sb->s_block_size;
