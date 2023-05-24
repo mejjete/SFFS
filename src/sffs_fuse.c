@@ -7,8 +7,7 @@
 #include <sffs_err.h>
 #include <sffs.h>
 #include <sffs_device.h>
-
-extern struct sffs_options __gl_sffs_opts;
+#include <errno.h>
 
 void *sffs_init(struct fuse_conn_info *conn)
 {   
@@ -22,8 +21,12 @@ void *sffs_init(struct fuse_conn_info *conn)
     if(!sffs_context)
         abort();
     
+    struct sffs_options *opts = (struct sffs_options *) __sffs_pd;
+    if(!opts)
+        abort();
+
     // Obtain pre-init parameter via global variable
-    int fd = open(__gl_sffs_opts.fs_image, O_RDWR);
+    int fd = open(opts->fs_image, O_RDWR);
     if(fd < 0)
         abort();
     sffs_context->disk_id = fd;
@@ -73,28 +76,108 @@ int sffs_statfs(const char *path, struct statvfs *statfs)
 
 int sffs_getattr(const char *path, struct stat *st)
 {
-    int res = -1;
+    struct fuse_context *fctx = fuse_get_context();
+    sffs_context_t *ctx = (sffs_context_t *) fctx->private_data;
 
-    st->st_uid = getuid();
-	st->st_gid = getgid();
-	st->st_atime = time(NULL);
-	st->st_mtime = time(NULL);
+    // Example implementation
+    printf("%s\n", path);
+    int res = 0;
 
-    if(strcmp(path, "/" ) == 0 )
-	{
-		st->st_mode = S_IFDIR | 0755;
-		st->st_nlink = 3;
+    memset(st, 0, sizeof(struct stat));
+
+    if (strcmp(path, "/") == 0) 
+    {
+        sffs_err_t errc;
+        struct sffs_inode_mem *ino_mem;
+        errc = sffs_creat_inode(ctx, 0, SFFS_IFREG, 0, &ino_mem);
+        if(errc < 0)
+            return errc;
+        
+        errc = sffs_read_inode(ctx, 0, ino_mem);
+        if(errc < 0)
+            return errc;
+        
+        st->st_dev = ctx->disk_id;
+
+        // Adding 1 because fuse treats 0 as optional value
+        st->st_ino = ino_mem->ino.i_inode_num + 1;
+
+        st->st_mode = SFFS_IFDIR | 0755;
+        st->st_nlink = ino_mem->ino.i_link_count;
+        st->st_uid = ino_mem->ino.i_uid_owner;
+        st->st_gid = ino_mem->ino.i_gid_owner;
+        st->st_size = ino_mem->ino.i_blks_count;
+        st->st_blksize = 1024;
+        st->st_blocks = st->st_blksize / 512;
+
+        st->st_atime = 0;
+        st->st_mtime = 0;
+        st->st_ctime = 0;
+
         res = 0;
-	}
-    else 
+        free(ino_mem);
+    } 
+    else if (strcmp(path, "/hello.txt") == 0) 
     {
         st->st_mode = S_IFREG | 0644;
-		st->st_nlink = 1;
-		st->st_size = 1024;
+        st->st_nlink = 1;
+        st->st_size = strlen("Hello, World!");
         res = 0;
+    } 
+    else 
+    {
+        res = -ENOENT;
     }
 
     return res;
+
+    // int res = 0;
+    // st->st_uid = getuid();
+    // st->st_gid = getgid();
+    // st->st_mode = S_IFREG | 0644;
+
+    // if(strcmp(path, "/" ) == 0)
+	// {
+	// 	sffs_err_t errc;
+    //     struct sffs_inode_mem *ino_mem;
+    //     errc = sffs_creat_inode(ctx, 0, SFFS_IFREG, 0, &ino_mem);
+    //     if(errc < 0)
+    //         return errc;
+        
+    //     errc = sffs_read_inode(ctx, 0, ino_mem);
+    //     if(errc < 0)
+    //         return errc;
+        
+    //     st->st_dev = ctx->disk_id;
+
+    //     // Adding 1 because fuse treats 0 as optional value
+    //     st->st_ino = ino_mem->ino.i_inode_num + 1;
+
+    //     st->st_mode = S_IFREG | 0644;
+    //     st->st_nlink = ino_mem->ino.i_link_count;
+    //     // st->st_uid = ino_mem->ino.i_uid_owner;
+    //     // st->st_gid = ino_mem->ino.i_gid_owner;
+    //     st->st_size = ino_mem->ino.i_blks_count;
+    //     st->st_blksize = ctx->sb.s_block_size;
+    //     st->st_blocks = st->st_blksize / 512;
+
+    //     st->st_atime = 0;
+    //     st->st_mtime = 0;
+    //     st->st_ctime = 0;
+
+    //     res = 0;
+    //     free(ino_mem);
+	// }
+    // else 
+    // {
+    //     st->st_mode = S_IFREG | 0644;
+	// 	st->st_nlink = 1;
+	// 	st->st_size = 1024;
+    //     // errno = ENOENT;
+    //     res = 0;
+    // }
+
+    // return res;
 };
 
 
@@ -121,7 +204,7 @@ int sffs_mknod(const char *, mode_t, dev_t) { THUMB_FUNC; }
 
 int sffs_unlink(const char *) { THUMB_FUNC; }
 
-int sffs_rmdir (const char *) { THUMB_FUNC; }
+int sffs_rmdir(const char *) { THUMB_FUNC; }
 
 int sffs_symlink(const char *, const char *) { THUMB_FUNC; }
 

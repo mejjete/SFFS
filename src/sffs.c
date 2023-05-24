@@ -14,6 +14,8 @@
 #include <sffs_device.h>
 #include <time.h>
 
+void *__sffs_pd;
+
 sffs_err_t sffs_read_sb(sffs_context_t *sffs_ctx, struct sffs_superblock *sb)
 {
     if(!sffs_ctx || !sb)
@@ -112,12 +114,7 @@ sffs_err_t sffs_write_inode(sffs_context_t *sffs_ctx, struct sffs_inode_mem *ino
     errc = sffs_write_blk(sffs_ctx, ino_block, sffs_ctx->cache, 1);
     if(errc < 0)
         return errc;
-    
-    // Second: update superblock
-    sffs_ctx->sb.s_free_inodes_count--;
-
-    // Third: update bitmap
-    return sffs_set_GIT_bm(sffs_ctx, ino);
+    return 0;
 }
 
 sffs_err_t sffs_read_inode(sffs_context_t *sffs_ctx, ino32_t ino_id, struct sffs_inode_mem *ino_mem)
@@ -145,10 +142,10 @@ sffs_err_t sffs_read_inode(sffs_context_t *sffs_ctx, ino32_t ino_id, struct sffs
             return errc;
         
         memcpy(inode, sffs_ctx->cache + block_offset, ino_entry_size);
-        return true;
+        return 0;
     }
     else
-        return false;
+        return SFFS_ERR_NOENT;
 }
 
 sffs_err_t sffs_alloc_inode(sffs_context_t *sffs_ctx, ino32_t *ino_id, 
@@ -159,17 +156,25 @@ sffs_err_t sffs_alloc_inode(sffs_context_t *sffs_ctx, ino32_t *ino_id,
 
     ino32_t resv_inodes = sffs_ctx->sb.s_inodes_reserved;
     ino32_t max_inodes = sffs_ctx->sb.s_inodes_count - resv_inodes;
+    sffs_err_t errc;
 
     for(int i = resv_inodes; i < max_inodes; i++)
     {
-        sffs_err_t errc = sffs_check_GIT_bm(sffs_ctx, i);
+        errc = sffs_check_GIT_bm(sffs_ctx, i);
         if(errc < 0)
             return errc;
         
-        if(errc == false)
+        // Meaning we found free spot
+        if(errc == 0)
         {
+            errc = sffs_set_GIT_bm(sffs_ctx, i);
+            if(errc < 0)
+                return errc;
+            
+            // Update superblock
+            sffs_ctx->sb.s_free_inodes_count--; 
             *ino_id = i;
-            return true;
+            return 0;
         }
     }
 

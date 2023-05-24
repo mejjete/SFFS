@@ -266,7 +266,6 @@ struct __attribute__ ((__packed__)) sffs_superblock
 
 #define SFFS_SB_SIZE        sizeof(struct sffs_superblock)
 
-
 typedef struct sffs_context
 {
     int disk_id;                // Image file descriptor
@@ -315,6 +314,14 @@ struct sffs_options
 };
 
 #define SFFS_OPT_INIT(t, p) { t, offsetof(struct sffs_options, p), 1 }
+
+/**
+ *  Special global variable for argument passing between mount and init
+ *  utilities
+ * 
+ *  sffs.c
+*/
+extern void *__sffs_pd;
 
 /*      sffs.c      */
 
@@ -366,7 +373,8 @@ sffs_err_t sffs_read_inode(sffs_context_t *sffs_ctx, ino32_t ino_id, struct sffs
  *  It does not implies on-disk layout not trying to effectively
  *  place inode. It just sequentially scans GIT bitmap and chooses the 
  *  first free inode position. Additionally, it does not consider mode 
- *  argument as well. Tend to be rewritten further.
+ *  argument as well. Tend to be rewritten further. Commits inode
+ *  to be allocated. Changes superblock
  * 
  *  If handler fails, the error code is returned
 */
