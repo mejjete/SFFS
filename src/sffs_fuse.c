@@ -102,7 +102,7 @@ int sffs_getattr(const char *path, struct stat *st)
         // Adding 1 because fuse treats 0 as optional value
         st->st_ino = ino_mem->ino.i_inode_num + 1;
 
-        st->st_mode = SFFS_IFDIR | 0755;
+        st->st_mode = ino_mem->ino.i_mode;
         st->st_nlink = ino_mem->ino.i_link_count;
         st->st_uid = ino_mem->ino.i_uid_owner;
         st->st_gid = ino_mem->ino.i_gid_owner;

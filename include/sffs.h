@@ -25,36 +25,36 @@
  *  file can support. Limits the maximum file size. This value is defined 
  *  for debugging purposes.
 */
-#define SFFS_MAX_INODE_LIST 32
+#define SFFS_MAX_INODE_LIST     32
 #endif 
 
-#define SFFS_MAGIC  0x53FF5346
+#define SFFS_MAGIC              0x53FF5346
 
 /**
  *  SFFS file permission flags
 */
-#define	SFFS_IRUSR  04000	// Read by owner
-#define	SFFS_IWUSR	02000   // Write by owner
-#define	SFFS_IXUSR	01000	// Execute by owner
+#define	SFFS_IRUSR  0400    // Read by owner
+#define	SFFS_IWUSR	0200    // Write by owner
+#define	SFFS_IXUSR	0100	// Execute by owner
 
 /**
  *  Mixed file permission flags
 */
 #define	SFFS_IRWXU	(SFFS_IRUSR | SFFS_IWUSR | SFFS_IXUSR)
 
-#define	SFFS_IRGRP	(S_IRUSR >> 3)	    // Read by group
-#define	SFFS_IWGRP	(S_IWUSR >> 3)	    // Write by group
-#define	SFFS_IXGRP	(S_IXUSR >> 3)	    // Execute by group
+#define	SFFS_IRGRP	(SFFS_IRUSR >> 3)	    // Read by group
+#define	SFFS_IWGRP	(SFFS_IWUSR >> 3)	    // Write by group
+#define	SFFS_IXGRP	(SFFS_IXUSR >> 3)	    // Execute by group
 
 // Read, write, and execute by group
-#define	SFFS_IRWXG	(S_IRWXU >> 3)
+#define	SFFS_IRWXG	(SFFS_IRWXU >> 3)
 
-#define	SFFS_IROTH	(S_IRGRP >> 3)	    // Read by others
-#define	SFFS_IWOTH	(S_IWGRP >> 3)	    // Write by others
-#define	SFFS_IXOTH	(S_IXGRP >> 3)	    // Execute by others
+#define	SFFS_IROTH	(SFFS_IRGRP >> 3)	    // Read by others
+#define	SFFS_IWOTH	(SFFS_IWGRP >> 3)	    // Write by others
+#define	SFFS_IXOTH	(SFFS_IXGRP >> 3)	    // Execute by others
 
 // Read, write, and execute by others
-#define	SFFS_IRWXO	(S_IRWXG >> 3)
+#define	SFFS_IRWXO	(SFFS_IRWXG >> 3)
 
 /**
  *  SFFS file types
