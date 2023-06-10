@@ -318,10 +318,8 @@ int main(int argc, char **argv)
     if(errc < 0)
         abort();
     
-    // mode_t root_mode = SFFS_IFDIR | SFFS_IRWXU | SFFS_IRGRP | SFFS_IXGRP
-        // | SFFS_IROTH | SFFS_IXOTH;
-    mode_t root_mode = SFFS_IFDIR | 0755;
-    // mode_t root_mode = SFFS_IFDIR | SFFS_IRWXU | SFFS_IRWXG | SFFS_IRWXO;
+    mode_t root_mode = SFFS_IFDIR | SFFS_IRWXU | SFFS_IRGRP | SFFS_IXGRP
+        | SFFS_IROTH | SFFS_IXOTH;
 
     errc = sffs_creat_inode(&sffs_ctx, inode, root_mode, 0, &ino_mem);
     if(errc < 0)
