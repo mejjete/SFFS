@@ -103,7 +103,7 @@ sffs_err_t sffs_new_direntry(sffs_context_t *sffs_ctx, struct sffs_inode *inode,
     return 0;
 }
 
-sffs_err_t sffs_lookup_direntry(sffs_context_t *sffs_ctx, struct sffs_inode_mem *parent, 
+sffs_err_t  sffs_lookup_direntry(sffs_context_t *sffs_ctx, struct sffs_inode_mem *parent, 
     const char *path, struct sffs_direntry **direntry, struct sffs_data_block_info *info)
 {
     if(!parent || !path)
@@ -179,7 +179,7 @@ sffs_err_t sffs_lookup_direntry(sffs_context_t *sffs_ctx, struct sffs_inode_mem 
         info->content = NULL;
     }
 
-    if(*direntry != NULL)
+    if(direntry != NULL)
         *direntry = buf;
     else 
         free(buf);
@@ -219,7 +219,7 @@ sffs_err_t sffs_add_direntry(sffs_context_t *sffs_ctx, struct sffs_inode_mem *pa
     errc = sffs_lookup_direntry(sffs_ctx, parent, direntry->name, NULL, NULL);
     if(errc == 1)
         return SFFS_ERR_ENTEXIS;
-    else 
+    else if(errc < 0)
         return errc;
 
     for(u32_t i = 0; i < ino_blocks; i++)
