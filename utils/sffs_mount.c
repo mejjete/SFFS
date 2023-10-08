@@ -12,6 +12,7 @@
 struct fuse_operations sffs_ops = 
 {
     .getattr        = sffs_getattr,
+    .opendir        = sffs_opendir,
     .mkdir          = sffs_mkdir,
     .readdir        = sffs_readdir,
     .init           = sffs_init,

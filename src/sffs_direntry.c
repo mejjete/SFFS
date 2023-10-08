@@ -248,7 +248,7 @@ sffs_err_t sffs_add_direntry(sffs_context_t *sffs_ctx, struct sffs_inode_mem *pa
     /**
      *  If we couldn't find big enough free space to put new directory in within the current 
      *  directory blocks, then we have to allocate new block, initialize its first
-     *  free directory entry and proceed with allocation
+     *  free directory entries and proceed with allocation
     */
     struct sffs_direntry *buf = (struct sffs_direntry *) malloc(SFFS_DIRENTRY_LENGTH);
     if(!buf)

@@ -9,6 +9,7 @@
 #include <sffs_device.h>
 #include <errno.h>
 
+
 void *sffs_init(struct fuse_conn_info *conn)
 {   
     /**
@@ -76,6 +77,24 @@ int sffs_statfs(const char *path, struct statvfs *statfs)
 
 int sffs_getattr(const char *path, struct stat *st)
 {
+    printf("%s\n", path);
+
+    if(strcmp(path, "/") == 0)
+    {
+        st->st_ino = 0;
+        st->st_mode = S_IFDIR | 0755;
+        st->st_nlink = 2;
+    }
+    else 
+    {
+        st->st_ino = 55;
+        st->st_mode = S_IFDIR | 0755;
+        st->st_nlink = 1;
+    }
+
+    return 0;
+
+#if 0
     struct fuse_context *fctx = fuse_get_context();
     sffs_context_t *ctx = (sffs_context_t *) fctx->private_data;
 
@@ -131,68 +150,234 @@ int sffs_getattr(const char *path, struct stat *st)
 
     return res;
 
-    // int res = 0;
-    // st->st_uid = getuid();
-    // st->st_gid = getgid();
-    // st->st_mode = S_IFREG | 0644;
+#else
 
-    // if(strcmp(path, "/" ) == 0)
-	// {
-	// 	sffs_err_t errc;
-    //     struct sffs_inode_mem *ino_mem;
-    //     errc = sffs_creat_inode(ctx, 0, SFFS_IFREG, 0, &ino_mem);
-    //     if(errc < 0)
-    //         return errc;
+    struct fuse_context *fctx = fuse_get_context();
+    sffs_context_t *ctx = (sffs_context_t *) fctx->private_data;
+
+    // Example implementation
+    printf("%s\n", path);
+    memset(st, 0, sizeof(struct stat));
+    
+    sffs_err_t errc;
+    struct sffs_inode_mem *ino_mem;
+    errc = sffs_creat_inode(ctx, 0, SFFS_IFREG, 0, &ino_mem);
+    if(errc < 0)
+        return errc;
+
+    bool exist = false;
+
+    if(strcmp(path, "/") == 0) 
+    {
+        errc = sffs_read_inode(ctx, 0, ino_mem);
+        if(errc < 0)
+            return errc;
+        exist = true;
+    } 
+    else 
+    {
+        struct sffs_inode_mem *child;
+        errc = sffs_creat_inode(ctx, 0, SFFS_IFREG, 0, &child);
+        if(errc < 0)
+            return errc;
+
+        const char *p = path + 1;
+        struct sffs_direntry *direntry;
         
-    //     errc = sffs_read_inode(ctx, 0, ino_mem);
-    //     if(errc < 0)
-    //         return errc;
+        errc = sffs_lookup_direntry(ctx, child, p, &direntry, NULL);
+        if(errc == false)
+            exist = false;
+        else if(errc < 0)
+            return -1;
+
+        errc = sffs_read_inode(ctx, direntry->ino_id, child);
+        if(errc < 0)
+            return -1;
         
-    //     st->st_dev = ctx->disk_id;
+        memcpy(ino_mem, child, SFFS_INODE_SIZE + SFFS_INODE_DATA_SIZE);
+        exist = true;
+        free(child);
+    }
 
-    //     // Adding 1 because fuse treats 0 as optional value
-    //     st->st_ino = ino_mem->ino.i_inode_num + 1;
+    if(!exist)
+        return -1;
+    
+    st->st_dev = ctx->disk_id;
 
-    //     st->st_mode = S_IFREG | 0644;
-    //     st->st_nlink = ino_mem->ino.i_link_count;
-    //     // st->st_uid = ino_mem->ino.i_uid_owner;
-    //     // st->st_gid = ino_mem->ino.i_gid_owner;
-    //     st->st_size = ino_mem->ino.i_blks_count;
-    //     st->st_blksize = ctx->sb.s_block_size;
-    //     st->st_blocks = st->st_blksize / 512;
+    // Adding 1 because fuse treats 0 as optional value
+    st->st_ino = ino_mem->ino.i_inode_num + 1;
 
-    //     st->st_atime = 0;
-    //     st->st_mtime = 0;
-    //     st->st_ctime = 0;
+    st->st_mode = ino_mem->ino.i_mode;
+    st->st_nlink = ino_mem->ino.i_link_count;
+    st->st_uid = ino_mem->ino.i_uid_owner;
+    st->st_gid = ino_mem->ino.i_gid_owner;
+    st->st_size = ino_mem->ino.i_blks_count;
+    st->st_blksize = ctx->sb.s_block_size;
+    st->st_blocks = st->st_blksize / 512;
 
-    //     res = 0;
-    //     free(ino_mem);
-	// }
-    // else 
-    // {
-    //     st->st_mode = S_IFREG | 0644;
-	// 	st->st_nlink = 1;
-	// 	st->st_size = 1024;
-    //     // errno = ENOENT;
-    //     res = 0;
-    // }
+    st->st_atime = 0;
+    st->st_mtime = 0;
+    st->st_ctime = 0;
 
-    // return res;
+    free(ino_mem);
+    return 0;
+#endif
 };
 
 
 int sffs_mkdir(const char *path, mode_t mode) 
-{ return 0; }
+{ 
+    // struct fuse_context *fctx = fuse_get_context();
+    // sffs_context_t *ctx = (sffs_context_t *) fctx->private_data;
 
+    // struct sffs_inode_mem *ino_mem;
+    // sffs_err_t errc = sffs_creat_inode(ctx, 0, SFFS_IFDIR, 0, &ino_mem);
+    // if(errc < 0)
+    //     return -1;
+
+    // // For now, create new directories only in a root
+    // errc = sffs_read_inode(ctx, 0, ino_mem);
+    // if(errc < 0)
+    //     return -1;
+
+    // // Allocate new inode
+    // ino32_t new_dir_ino;
+    // mode_t new_dir_mode = SFFS_IFDIR | SFFS_IRWXU | SFFS_IRGRP | SFFS_IXGRP
+    //     | SFFS_IROTH | SFFS_IXOTH;
+
+    // errc = sffs_alloc_inode(ctx, &new_dir_ino, new_dir_mode);
+    // if(errc < 0)
+    //     return -1;
+
+    // struct sffs_inode_mem *new_dir;
+    // errc = sffs_creat_inode(ctx, new_dir_ino, new_dir_mode, 0, &new_dir);
+    // if(errc < 0)
+    //     return -1;
+
+    // // Remove leading slash
+    // const char *new_dir_name = path + 1;
+    // size_t new_dir_len = strlen(new_dir_name) + SFFS_DIRENTRY_LENGTH;
+    // struct sffs_direntry *new_direntry = malloc(new_dir_len);
+    // if(!new_dir)
+    //     return -1;
+
+    // new_direntry->ino_id = new_dir->ino.i_inode_num;
+    // new_direntry->file_type = SFFS_DIRENTRY_MODE(new_dir->ino.i_mode);
+    // new_direntry->rec_len = new_dir_len;
+    // memcpy(new_direntry->name, new_dir_name, strlen(new_dir_name));
+
+    // errc = sffs_write_inode(ctx, new_dir);
+    // if(errc < 0)
+    //     return -1; 
+
+    // errc = sffs_init_direntry(ctx, ino_mem, new_dir);
+    // if(errc < 0)
+    //     return -1;
+
+    // errc = sffs_add_direntry(ctx, ino_mem, new_direntry);
+    // if(errc < 0)
+    //     return -1; 
+
+    // free(new_dir);
+    // free(new_direntry);
+    // return 0; 
+}
 
 int sffs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
 			struct fuse_file_info *fi)
 {
+    // // In this example, we are providing a fixed directory listing for the root directory ("/")
+    // if (strcmp(path, "/") != 0)
+    //     return -ENOENT;
+
+    // // Add entries to the directory listing using the filler function
+    // filler(buf, ".", NULL, 0);     // Current directory entry
+    // filler(buf, "..", NULL, 0);    // Parent directory entry
+    // filler(buf, "file1.txt", NULL, 0);   // Example file entry
+    // filler(buf, "file2.txt", NULL, 0);   // Another file entry
+
+    struct fuse_context *fctx = fuse_get_context();
+    sffs_context_t *ctx = (sffs_context_t *) fctx->private_data;
+
+    sffs_err_t errc;
+    struct sffs_inode_mem *ino_mem;
+    errc = sffs_creat_inode(ctx, 0, SFFS_IFDIR, 0, &ino_mem);
+    if(errc < 0)
+        return -1;
+    
+    errc = sffs_read_inode(ctx, 0, ino_mem);
+    if(errc < 0)
+        return -1;
+
+    struct sffs_data_block_info db_info;
+    db_info.content = malloc(ctx->sb.s_block_size);
+    if(!db_info.content)
+        return SFFS_ERR_MEMALLOC;
+
+    u32_t ino_blocks = ino_mem->ino.i_blks_count;
+    u16_t accum_rec = 0;
+    u16_t rec_len;
+    struct sffs_direntry *dir_buf = (struct sffs_direntry *) 
+        malloc(SFFS_MAX_DIR_ENTRY + 1);
+    
+    if(!buf)
+        return SFFS_ERR_MEMALLOC;
+
+    for(u32_t i = 0; i < ino_blocks; i++)
+    {
+        int flags = SFFS_GET_BLK_RD;
+        errc = sffs_get_data_block_info(ctx, i, flags, &db_info, ino_mem);
+        if(errc < 0)
+            return errc;
+        
+        u8_t *dptr = (u8_t *) db_info.content;
+        accum_rec = 0;
+
+        do 
+        {
+            struct sffs_direntry *temp = (struct sffs_direntry *) dptr;
+            rec_len = temp->rec_len;
+
+            memcpy(dir_buf, temp, rec_len);
+            size_t name_len = rec_len - SFFS_DIRENTRY_LENGTH;
+            dir_buf->name[name_len] = 0;
+            struct stat statbuf;
+            statbuf.st_ino = 10;
+            statbuf.st_mode = SFFS_IFDIR | SFFS_IRWXU | SFFS_IRGRP | SFFS_IWGRP | 
+                SFFS_IXGRP | SFFS_IROTH | SFFS_IXOTH;
+            statbuf.st_uid = 1000;
+
+            if(dir_buf->file_type != 0)
+            {
+                size_t f_name_len = dir_buf->rec_len - SFFS_DIRENTRY_LENGTH;
+                char *f_name = malloc(f_name_len + 1);
+                if(!f_name)
+                    return -1;
+                
+                memcpy(f_name, dir_buf->name, f_name_len);
+                f_name[f_name_len] = 0;
+
+                if(filler(buf, f_name, NULL, accum_rec) != 0)
+                    return -1;
+                free(f_name);
+            }
+
+            accum_rec += rec_len;
+            dptr += rec_len;
+        } while(accum_rec < ctx->sb.s_block_size);
+    }
+
     return 0;
 }
 
 int sffs_read(const char *, char *, size_t, off_t, struct fuse_file_info *)
 {
+    return 0;
+}
+
+int sffs_opendir(const char *, struct fuse_file_info *) 
+{
+    printf("sffs_opendir\n");
     return 0;
 }
 
@@ -243,8 +428,6 @@ int sffs_getxattr(const char *, const char *, char *, size_t) { THUMB_FUNC; }
 int sffs_listxattr(const char *, char *, size_t) { THUMB_FUNC; }
 
 int sffs_removexattr(const char *, const char *) { THUMB_FUNC; }
-
-int sffs_opendir(const char *, struct fuse_file_info *) { THUMB_FUNC; }
 
 int sffs_releasedir(const char *, struct fuse_file_info *) { THUMB_FUNC; }
 
